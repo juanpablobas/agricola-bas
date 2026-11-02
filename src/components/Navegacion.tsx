@@ -12,12 +12,9 @@ function activo(ruta: string, href: string) {
 
 function Marca() {
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="grid size-9 place-items-center rounded-lg bg-white/10 text-sm font-bold tracking-wide text-white">BAS</span>
-      <div className="leading-tight">
-        <p className="text-sm font-semibold text-white">Agrícola BAS</p>
-        <p className="text-xs text-white/60">Fundo La Morera</p>
-      </div>
+    <div className="rounded-xl bg-white px-3 py-2.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo.png" alt="Agrícola BAS · Frutícola" className="h-auto w-full max-w-44" />
     </div>
   );
 }
