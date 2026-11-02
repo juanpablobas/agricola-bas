@@ -8,9 +8,18 @@ export async function ingresar(_: EstadoFormulario, form: FormData): Promise<Est
   const clave = String(form.get("clave") ?? "");
   if (!email || !clave) return { error: "Ingresa tu correo y contraseña." };
 
-  const supabase = await crearClienteServidor();
-  const { error } = await supabase.auth.signInWithPassword({ email, password: clave });
-  if (error) return { error: "Correo o contraseña incorrectos." };
+  let error: { message: string; code?: string } | null = null;
+  try {
+    const supabase = await crearClienteServidor();
+    const r = await supabase.auth.signInWithPassword({ email, password: clave });
+    error = r.error;
+  } catch (e) {
+    error = { message: e instanceof Error ? e.message : String(e), code: "config" };
+  }
+  if (error) {
+    if (error.code === "invalid_credentials") return { error: "Correo o contraseña incorrectos." };
+    return { error: `No se pudo ingresar (${error.code ?? "error"}): ${error.message}` };
+  }
   redirect("/");
 }
 
