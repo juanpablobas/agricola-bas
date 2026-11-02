@@ -29,6 +29,7 @@ Tiempo estimado: 30 a 45 minutos la primera vez.
    2. `20261102000200_almacenamiento.sql` (carpeta privada para fotos y documentos)
    3. `20261102000300_datos_la_morera.sql` (cuarteles, 26 sectores y 5 equipos reales)
    4. `20261102000400_plantacion_y_polinizantes.sql` (año de plantación, portainjertos, polinizantes y cuarteles sin plantar)
+   5. `20261102000500_endurecer_seguridad.sql` (ajustes del revisor de seguridad de Supabase)
 
    Cada uno debe terminar con "Success. No rows returned".
 4. Comprueba la carga: en una consulta nueva ejecuta
@@ -37,7 +38,7 @@ Tiempo estimado: 30 a 45 minutos la primera vez.
    ```
    Debe dar **28** y **85.00**.
 
-> Alternativa con terminal: `npx supabase login`, `npx supabase link --project-ref <ref>` y `npx supabase db push` aplican las cuatro migraciones de una vez.
+> Alternativa con terminal: `npx supabase login`, `npx supabase link --project-ref <ref>` y `npx supabase db push` aplican las cinco migraciones de una vez.
 
 ## Paso 2 · Crear tu usuario administrador (antes que nadie)
 

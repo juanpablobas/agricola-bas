@@ -159,7 +159,7 @@ create table public.temporada (
 );
 
 -- Las temporadas no se traslapan
-create extension if not exists btree_gist;
+create extension if not exists btree_gist with schema extensions;
 alter table public.temporada
   add constraint temporada_sin_traslape
   exclude using gist (daterange(inicio, termino, '[]') with &&);
