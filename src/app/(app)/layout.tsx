@@ -11,6 +11,8 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
     { href: "/riego", texto: "Riego", icono: "riego" },
     { href: "/campo", texto: "Campo", icono: "campo" },
   ];
+  if (["administrador", "enc_administrativo", "propietario"].includes(perfil.rol))
+    items.splice(2, 0, { href: "/finanzas", texto: "Finanzas", icono: "finanzas" });
   if (perfil.rol === "administrador") items.push({ href: "/usuarios", texto: "Usuarios", icono: "usuarios" });
   if (perfil.rol === "administrador" || perfil.rol === "propietario")
     items.push({ href: "/actividad", texto: "Actividad", icono: "actividad" });
