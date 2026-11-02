@@ -143,6 +143,7 @@ Todo viene del plano *Sectorización Fundo La Morera*, HC Ingeniería, versión 
 - **4-4b** (3,40 ha): sin plantar, ciruelo de variedad por definir.
 - **4-5a** (2,99 ha) y **4-5b** (1,22 ha): sin plantar; se plantarán en 2027 con ciruelo **AG 206**. Comparten el sector de riego 4-5.
 - Carozos plantados en **invierno de 2024**. Portainjertos: Lapins y Santina en **Colt**; Areko en **Gisela 12**; Tiffany, Luciana, Garcica y Soledora en **Atlas**; ciruelos por completar.
+- **2-3** es **Santina** (el plano lo indica como Lapins). Lapins queda en 2-1 y 2-2 (4,42 ha); Santina en 2-3, 4-3 y 4-4a (7,25 ha), igual que los controles financieros.
 - Polinizantes: Areko con Kordia y Skeena (Gisela 12) y Lapins como supernumeraria (Colt); Red Phoenix con Sweet Mary en cabeceras, hilera de Candy Red cada 4 y un Dapple Dandy cada 9 plantas en esa hilera; Candy Red igual, con Red Phoenix en la hilera polinizante.
 
 | Equipo | Cuarteles | Superficie |
@@ -158,7 +159,6 @@ Todo viene del plano *Sectorización Fundo La Morera*, HC Ingeniería, versión 
 
 - [ ] Variedad del cuartel **4-4b**, cuando se defina.
 - [ ] Portainjerto de los ciruelos y año de plantación de los nogales.
-- [ ] Confirmar cuál de los cuarteles 2-1, 2-2 o 2-3 es Santina: los controles financieros usan 4,4 ha de Lapins y 7,2 ha de Santina, mientras el plano trae 6,63 ha de Lapins y 5,04 ha de Santina (la diferencia es exactamente un cuartel de 2,21 ha).
 - [ ] Conteo real de plantas (mientras tanto se muestran las teóricas según el marco).
 - [ ] Superficie total del predio (Campo → Datos generales).
 - [ ] Nogales: los controles financieros usan 28,54 ha y el plano, descontado el tranque, da 28,47 ha. Definir cuál es la cifra oficial.

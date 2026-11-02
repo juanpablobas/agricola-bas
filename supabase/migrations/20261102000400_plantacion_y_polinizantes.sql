@@ -7,6 +7,7 @@
 --     Kordia y Skeena en Gisela 12 (polinizante Lapins en Colt);
 --     Tiffany, Luciana, Garcica y Soledora en Atlas.
 --   · Polinizantes de Areko, Red Phoenix y Candy Red.
+--   · El cuartel 2-3 es Santina (el plano decía Lapins).
 --   · La temporada de los controles del campo parte en mayo.
 -- =====================================================================
 
@@ -97,6 +98,22 @@ update public.cuartel_periodo p
        motivo = 'Plantación programada para 2027'
   from public.cuartel c
  where c.id = p.cuartel_id and c.codigo in ('4-5a', '4-5b') and p.hasta is null;
+
+-- ---------------------------------------------------------------------
+-- El cuartel 2-3 es Santina, no Lapins (el plano estaba desactualizado).
+-- Se corrige el registro; no es un reinjerto.
+-- Lapins queda en 2-1 y 2-2 (4,42 ha); Santina en 2-3, 4-3 y 4-4a (7,25 ha).
+-- ---------------------------------------------------------------------
+update public.cuartel_periodo p
+   set variedad_id = (select v.id from public.variedad v
+                        join public.especie e on e.id = v.especie_id
+                       where e.nombre = 'Cerezo' and v.nombre = 'Santina')
+  from public.cuartel c
+ where c.id = p.cuartel_id and c.codigo = '2-3' and p.hasta is null;
+
+update public.cuartel
+   set observaciones = 'Santina. El plano v2 lo indica como Lapins; corregido según el campo.'
+ where codigo = '2-3';
 
 -- ---------------------------------------------------------------------
 -- Carozos plantados: invierno de 2024 y portainjertos
