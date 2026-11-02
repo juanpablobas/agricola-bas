@@ -1,3 +1,4 @@
+import { SUPABASE_URL } from "./config";
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
@@ -6,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
  * usar solo en acciones de servidor que ya verificaron que quien llama es administrador.
  */
 export function crearClienteAdmin() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  return createClient(SUPABASE_URL, (process.env.APP_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim(), {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

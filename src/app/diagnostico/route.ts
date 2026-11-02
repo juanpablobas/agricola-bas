@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase/config";
 
 export const dynamic = "force-dynamic";
 
 /** Revisa que la app llegue a Supabase. No muestra llaves, solo cómo empiezan y su largo. */
 export async function GET() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  const url = SUPABASE_URL;
+  const anon = SUPABASE_ANON_KEY;
   const pub = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
-  const servicio = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const servicio = process.env.APP_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
   const forma = (v: string) => (v ? `${v.slice(0, 8)}… (${v.length} caracteres)` : "VACÍA");
 
@@ -20,7 +21,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    NEXT_PUBLIC_SUPABASE_URL: url || "VACÍA",
+    URL_que_usa_la_app: url || "VACÍA",
     url_tiene_espacios_o_barra_final: url !== url.trim() || url.endsWith("/"),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: forma(anon),
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: forma(pub),
