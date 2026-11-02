@@ -15,6 +15,8 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
     items.splice(2, 0, { href: "/finanzas", texto: "Finanzas", icono: "finanzas" });
   if (["administrador", "enc_administrativo", "enc_agricola", "propietario"].includes(perfil.rol))
     items.splice(items.findIndex((i) => i.href === "/campo") + 1, 0, { href: "/inventario", texto: "Inventario", icono: "inventario" });
+  if (["administrador", "enc_administrativo", "enc_agricola", "propietario"].includes(perfil.rol))
+    items.splice(items.findIndex((i) => i.href === "/inventario") + 1, 0, { href: "/programas", texto: "Programas", icono: "programas" });
   if (perfil.rol === "administrador") items.push({ href: "/usuarios", texto: "Usuarios", icono: "usuarios" });
   if (perfil.rol === "administrador" || perfil.rol === "propietario")
     items.push({ href: "/actividad", texto: "Actividad", icono: "actividad" });
