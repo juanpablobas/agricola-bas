@@ -62,12 +62,16 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
     supabase.from("temporada").select("nombre, inicio, termino").lte("inicio", hoy).gte("termino", hoy).maybeSingle(),
   ]);
 
-  const filas = cuarteles ?? [];
+  const filas = (cuarteles ?? []) as FilaCuartel[];
   const total = suma(filas);
+  const noPlantado = (f: FilaCuartel) => f.estado_productivo === "sin_plantar" || f.estado_productivo === "eliminado";
+  const plantados = filas.filter((f) => !noPlantado(f));
+  const porPlantar = filas.filter(noPlantado);
+  const totalPlantado = suma(plantados);
   const totalPredio = campo?.superficie_total_ha ? Number(campo.superficie_total_ha) : null;
   const plantasTeoricas = filas.reduce((s, f) => s + (f.plantas ?? f.plantas_teoricas ?? 0), 0);
 
-  const porGrupo = [...agrupar(filas, (f) => f.grupo ?? "Sin especie")].map(([g, fs]) => ({ g, ha: suma(fs), n: fs.length }));
+  const porGrupo = [...agrupar(plantados, (f) => f.grupo ?? "Sin especie")].map(([g, fs]) => ({ g, ha: suma(fs), n: fs.length }));
   const porEspecie = [...agrupar(filas, (f) => f.especie ?? "Sin especie")]
     .map(([especie, fs]) => ({ especie, ha: suma(fs), n: fs.length }))
     .sort((a, b) => b.ha - a.ha);
@@ -83,10 +87,10 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const porEstado = [...agrupar(filas, (f) => f.estado_productivo)].map(([e, fs]) => ({ e, ha: suma(fs), n: fs.length }));
 
   const pendientes = [
-    { texto: "sin variedad", n: filas.filter((f) => !f.variedad).length },
-    { texto: "sin año de plantación", n: filas.filter((f) => !f.anio_plantacion).length },
-    { texto: "sin portainjerto", n: filas.filter((f) => !f.portainjerto).length },
-    { texto: "sin conteo real de plantas", n: filas.filter((f) => f.plantas === null).length },
+    { texto: "sin variedad", n: plantados.filter((f) => !f.variedad).length },
+    { texto: "sin año de plantación", n: plantados.filter((f) => !f.anio_plantacion).length },
+    { texto: "sin portainjerto", n: plantados.filter((f) => !f.portainjerto).length },
+    { texto: "sin conteo real de plantas", n: plantados.filter((f) => f.plantas === null).length },
   ].filter((p) => p.n > 0);
 
   const maxEspecie = Math.max(...porEspecie.map((e) => e.ha), 1);
@@ -112,13 +116,23 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Indicador
           titulo="Superficie plantada"
-          valor={ha(total)}
-          detalle={totalPredio ? `${pct((total / totalPredio) * 100)} de ${ha(totalPredio)} del predio` : "Superficie del predio por definir"}
+          valor={ha(totalPlantado)}
+          detalle={
+            porPlantar.length
+              ? `${ha(suma(porPlantar))} por plantar (${porPlantar.map((f) => f.codigo).join(", ")})`
+              : totalPredio
+                ? `${pct((totalPlantado / totalPredio) * 100)} del predio`
+                : undefined
+          }
         />
         {porGrupo.map((g) => (
-          <Indicador key={g.g} titulo={g.g === "Nogal" ? "Nogales" : g.g === "Carozo" ? "Carozos" : g.g} valor={ha(g.ha)} detalle={`${g.n} cuarteles`} />
+          <Indicador key={g.g} titulo={g.g === "Nogal" ? "Nogales" : g.g === "Carozo" ? "Carozos plantados" : g.g} valor={ha(g.ha)} detalle={`${g.n} cuarteles`} />
         ))}
-        <Indicador titulo="Cuarteles · sectores" valor={`${filas.length} · ${nSectores ?? 0}`} detalle={`${num(plantasTeoricas)} plantas (teóricas por marco)`} />
+        <Indicador
+          titulo="Cuarteles · sectores"
+          valor={`${filas.length} · ${nSectores ?? 0}`}
+          detalle={`${ha(total)} en cuarteles${totalPredio ? ` de ${ha(totalPredio)} del predio` : ""} · ${num(plantasTeoricas)} plantas`}
+        />
       </section>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-5">

@@ -2,7 +2,7 @@
 
 Sistema de gestión agrícola, administrativa y financiera del Fundo La Morera (Agrícola BAS S.A., Graneros).
 
-**Etapa 1 (esta versión):** catastro del campo, 27 cuarteles reales con su historia de plantación, equipos y sectores de riego, usuarios con perfiles y permisos, tablero inicial, fotos y documentos por cuartel, y registro de actividad que no se puede borrar.
+**Etapa 1 (esta versión):** catastro del campo, 28 cuarteles reales con su historia de plantación, equipos y sectores de riego, usuarios con perfiles y permisos, tablero inicial, fotos y documentos por cuartel, y registro de actividad que no se puede borrar.
 
 ---
 
@@ -27,16 +27,17 @@ Tiempo estimado: 30 a 45 minutos la primera vez.
 3. Abre cada archivo de la carpeta `supabase/migrations/` **en este orden**, copia todo su contenido, pégalo y presiona **Run**:
    1. `20261102000100_etapa1_base.sql` (tablas, permisos y auditoría)
    2. `20261102000200_almacenamiento.sql` (carpeta privada para fotos y documentos)
-   3. `20261102000300_datos_la_morera.sql` (los 27 cuarteles, 26 sectores y 5 equipos reales)
+   3. `20261102000300_datos_la_morera.sql` (cuarteles, 26 sectores y 5 equipos reales)
+   4. `20261102000400_plantacion_y_polinizantes.sql` (año de plantación, portainjertos, polinizantes y cuarteles sin plantar)
 
    Cada uno debe terminar con "Success. No rows returned".
 4. Comprueba la carga: en una consulta nueva ejecuta
    ```sql
    select count(*), sum(superficie_ha) from cuartel;
    ```
-   Debe dar **27** y **85.00**.
+   Debe dar **28** y **85.00**.
 
-> Alternativa con terminal: `npx supabase login`, `npx supabase link --project-ref <ref>` y `npx supabase db push` aplican las tres migraciones de una vez.
+> Alternativa con terminal: `npx supabase login`, `npx supabase link --project-ref <ref>` y `npx supabase db push` aplican las cuatro migraciones de una vez.
 
 ## Paso 2 · Crear tu usuario administrador (antes que nadie)
 
@@ -139,25 +140,30 @@ Todo viene del plano *Sectorización Fundo La Morera*, HC Ingeniería, versión 
 - Sector y cuartel **1-4**: 4,53 ha (el plano dice 5,03; se descuentan 0,50 ha por el tranque).
 - Nogales: variedad **Chandler**, marco 7 × 5 m (el 1-1 figura con 7 × 6 m en el plano).
 - **4-4** es un solo sector de riego con dos cuarteles: 4-4a (cerezo Santina, 0,82 ha) y 4-4b (ciruelo, 3,40 ha).
-- **4-5**: ciruelo **AG 206**, 4,21 ha (en el plano, 4-5a y 4-5b).
+- **4-4b** (3,40 ha): sin plantar, ciruelo de variedad por definir.
+- **4-5a** (2,99 ha) y **4-5b** (1,22 ha): sin plantar; se plantarán en 2027 con ciruelo **AG 206**. Comparten el sector de riego 4-5.
+- Carozos plantados en **invierno de 2024**. Portainjertos: Lapins y Santina en **Colt**; Areko en **Gisela 12**; Tiffany, Luciana, Garcica y Soledora en **Atlas**; ciruelos por completar.
+- Polinizantes: Areko con Kordia y Skeena (Gisela 12) y Lapins como supernumeraria (Colt); Red Phoenix con Sweet Mary en cabeceras, hilera de Candy Red cada 4 y un Dapple Dandy cada 9 plantas en esa hilera; Candy Red igual, con Red Phoenix en la hilera polinizante.
 
 | Equipo | Cuarteles | Superficie |
 | --- | --- | --- |
 | 1 · Nogales | 6 | 28,47 ha |
 | 2 | 5 | 11,92 ha |
 | 3 | 5 | 13,06 ha |
-| 4 | 6 | 19,75 ha |
+| 4 | 7 | 19,75 ha (7,61 ha sin plantar) |
 | 5 | 5 | 11,80 ha |
-| **Total** | **27** | **85,00 ha** |
+| **Total** | **28** | **85,00 ha** (77,39 ha plantadas) |
 
 ### Por completar en la app
 
-- [ ] Variedad del cuartel **4-4b** (el plano solo dice "Ciruelo").
-- [ ] Año de plantación y portainjerto de cada cuartel.
+- [ ] Variedad del cuartel **4-4b**, cuando se defina.
+- [ ] Portainjerto de los ciruelos y año de plantación de los nogales.
+- [ ] Confirmar cuál de los cuarteles 2-1, 2-2 o 2-3 es Santina: los controles financieros usan 4,4 ha de Lapins y 7,2 ha de Santina, mientras el plano trae 6,63 ha de Lapins y 5,04 ha de Santina (la diferencia es exactamente un cuartel de 2,21 ha).
 - [ ] Conteo real de plantas (mientras tanto se muestran las teóricas según el marco).
 - [ ] Superficie total del predio (Campo → Datos generales).
+- [ ] Nogales: los controles financieros usan 28,54 ha y el plano, descontado el tranque, da 28,47 ha. Definir cuál es la cifra oficial.
 - [ ] Revisar el estado productivo: los carozos quedaron "En formación" y los nogales "Productivo".
-- [ ] Confirmar la temporada: se creó **2026-27** del 1 de junio al 31 de mayo. Si el campo usa otro período, se corrige en Campo.
+- [ ] Confirmar la temporada: **2026-27** va del 1 de mayo al 30 de abril, igual que los controles actuales (Remesa, Petróleo, Personal). Si es otro período, se corrige en Campo.
 
 ---
 

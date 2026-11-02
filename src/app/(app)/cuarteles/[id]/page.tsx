@@ -6,7 +6,7 @@ import { Aviso } from "@/components/Aviso";
 import { Icono } from "@/components/Icono";
 import { SubirArchivo } from "@/components/SubirArchivo";
 import { BotonEnviar } from "@/components/BotonEnviar";
-import { cambiarActivo, registrarArchivo, borrarArchivo } from "../acciones";
+import { cambiarActivo, registrarArchivo, borrarArchivo, agregarPolinizante, quitarPolinizante } from "../acciones";
 import { cargarCuartel } from "./cargar";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -65,7 +65,7 @@ export default async function FichaCuartel({
 
   const c = await cargarCuartel(supabase, id);
 
-  const [{ data: periodos }, { data: sectores }, { data: archivos }, { data: usuarios }] = await Promise.all([
+  const [{ data: periodos }, { data: sectores }, { data: archivos }, { data: usuarios }, { data: polinizantes }, { data: variedadesEspecie }] = await Promise.all([
     supabase
       .from("cuartel_periodo")
       .select("id, desde, hasta, portainjerto, anio_plantacion, distancia_hileras_m, distancia_plantas_m, plantas, motivo, especie(nombre), variedad(nombre)")
@@ -83,6 +83,15 @@ export default async function FichaCuartel({
       .eq("entidad_id", id)
       .order("creado_en", { ascending: false }),
     supabase.from("v_usuario").select("id, nombre"),
+    c.periodo_id
+      ? supabase
+          .from("cuartel_polinizante")
+          .select("id, portainjerto, disposicion, variedad(nombre)")
+          .eq("periodo_id", c.periodo_id)
+      : Promise.resolve({ data: [] as any[] }),
+    c.especie_id
+      ? supabase.from("variedad").select("id, nombre").eq("especie_id", c.especie_id).order("nombre")
+      : Promise.resolve({ data: [] as any[] }),
   ]);
 
   const periodoIds = (periodos ?? []).map((p: any) => p.id);
@@ -199,6 +208,51 @@ export default async function FichaCuartel({
           <Link href="/riego" className="mt-4 inline-block text-sm text-verde hover:underline">Ver todos los equipos</Link>
         </section>
       </div>
+
+      {(c.periodo_id && ((polinizantes ?? []).length > 0 || editor)) && (
+        <section className="tarjeta mt-5 p-5">
+          <h2 className="font-semibold">Polinizantes</h2>
+          {(polinizantes ?? []).length === 0 ? (
+            <p className="mt-1 text-sm text-tinta-suave">Sin polinizantes registrados para la plantación vigente.</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-linea">
+              {(polinizantes ?? []).map((p: any) => (
+                <li key={p.id} className="flex items-start justify-between gap-3 py-2.5 text-sm">
+                  <span>
+                    <span className="font-medium">{p.variedad?.nombre}</span>
+                    {p.portainjerto && <span className="text-tinta-suave"> · {p.portainjerto}</span>}
+                    {p.disposicion && <span className="block text-tinta-suave">{p.disposicion}</span>}
+                  </span>
+                  {editor && (
+                    <form action={quitarPolinizante}>
+                      <input type="hidden" name="id" value={p.id} />
+                      <input type="hidden" name="cuartel_id" value={id} />
+                      <button className="text-alerta hover:underline" aria-label={`Quitar ${p.variedad?.nombre}`}>
+                        <Icono nombre="basura" className="size-4" />
+                      </button>
+                    </form>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {editor && (
+            <form action={agregarPolinizante} className="mt-4 grid gap-2 sm:grid-cols-4">
+              <input type="hidden" name="cuartel_id" value={id} />
+              <input type="hidden" name="periodo_id" value={c.periodo_id} />
+              <select name="variedad_id" required defaultValue="" className="entrada" aria-label="Variedad polinizante">
+                <option value="" disabled>Polinizante…</option>
+                {(variedadesEspecie ?? [])
+                  .filter((v: any) => v.id !== c.variedad_id)
+                  .map((v: any) => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+              </select>
+              <input name="portainjerto" placeholder="Portainjerto" className="entrada" aria-label="Portainjerto" />
+              <input name="disposicion" placeholder="Dónde va (ej. cabeceras)" className="entrada" aria-label="Disposición" />
+              <BotonEnviar className="boton-secundario" pendiente="Agregando…">Agregar</BotonEnviar>
+            </form>
+          )}
+        </section>
+      )}
 
       <section className="tarjeta mt-5 overflow-hidden">
         <h2 className="px-5 pt-5 font-semibold">Historial de plantación</h2>

@@ -45,6 +45,7 @@ export const TABLAS: Record<string, string> = {
   cuartel_periodo: "Plantación del cuartel",
   centro_costo: "Centro de costo",
   archivo: "Archivo",
+  cuartel_polinizante: "Polinizante",
 };
 
 export const ACCIONES: Record<string, string> = {

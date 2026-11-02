@@ -77,7 +77,7 @@ function validar(c: ReturnType<typeof leerCuartel>, p: ReturnType<typeof leerPer
 async function guardarSectores(supabase: Supa, cuartelId: string, form: FormData) {
   const elegidos = form.getAll("sectores").map(String);
   const { data: actuales } = await supabase.from("cuartel_sector").select("sector_id").eq("cuartel_id", cuartelId);
-  const ya = new Set((actuales ?? []).map((a) => a.sector_id as string));
+  const ya = new Set<string>((actuales ?? []).map((a: { sector_id: string }) => a.sector_id));
   const quitar = [...ya].filter((s) => !elegidos.includes(s));
   const agregar = elegidos.filter((s) => !ya.has(s));
   if (quitar.length) await supabase.from("cuartel_sector").delete().eq("cuartel_id", cuartelId).in("sector_id", quitar);
@@ -210,4 +210,28 @@ export async function borrarArchivo(form: FormData) {
   await supabase.storage.from("archivos").remove([a.ruta]);
   await supabase.from("archivo").delete().eq("id", id);
   revalidatePath(`/cuarteles/${a.entidad_id}`);
+}
+
+export async function agregarPolinizante(form: FormData) {
+  const { supabase } = await exigirRol("administrador", "enc_agricola");
+  const cuartelId = String(form.get("cuartel_id"));
+  const periodoId = String(form.get("periodo_id"));
+  const variedadId = leerTexto(form.get("variedad_id"));
+  if (!variedadId) return;
+  await supabase.from("cuartel_polinizante").upsert(
+    {
+      periodo_id: periodoId,
+      variedad_id: variedadId,
+      portainjerto: leerTexto(form.get("portainjerto")),
+      disposicion: leerTexto(form.get("disposicion")),
+    },
+    { onConflict: "periodo_id,variedad_id" },
+  );
+  revalidatePath(`/cuarteles/${cuartelId}`);
+}
+
+export async function quitarPolinizante(form: FormData) {
+  const { supabase } = await exigirRol("administrador", "enc_agricola");
+  await supabase.from("cuartel_polinizante").delete().eq("id", String(form.get("id")));
+  revalidatePath(`/cuarteles/${String(form.get("cuartel_id"))}`);
 }
