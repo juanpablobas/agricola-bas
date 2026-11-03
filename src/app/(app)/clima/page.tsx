@@ -8,6 +8,7 @@ import { cargarSeguimiento } from "@/lib/seguimiento";
 import { hayClaveIA } from "@/lib/recomendacion";
 import { generarRecomendacionHoy, guardarUbicacion } from "./acciones";
 import { BotonUbicacion } from "./BotonUbicacion";
+import { Pronostico } from "./Pronostico";
 
 export const metadata = { title: "Clima" };
 
@@ -44,19 +45,6 @@ export default async function Clima({ searchParams }: { searchParams: Promise<{ 
       {q.error && <div className="mb-3"><Aviso tipo="error">Revisa la latitud y la longitud (por ejemplo -34,07 y -70,70).</Aviso></div>}
 
       {q.ia && <div className="mb-3"><Aviso tipo="error">No se pudo generar la recomendación: {q.ia}</Aviso></div>}
-      {verProgramas && (
-        <section className="tarjeta mb-4 p-4">
-          <h2 className="mb-1 font-semibold">Recomendación del día <span className="pastilla ml-1 bg-verde-claro text-verde-oscuro">IA</span></h2>
-          {reco ? (
-            <p className="whitespace-pre-line text-sm">{reco.texto}</p>
-          ) : !hayClaveIA() ? (
-            <p className="text-sm text-tinta-suave">Todavía no está activada: falta la clave de la IA en Vercel (variable ANTHROPIC_API_KEY).</p>
-          ) : (
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-sm text-tinta-suave">Hoy todavía no se ha generado. Se genera sola cada mañana, o puedes pedirla ahora.</p>
-              {edita && <form action={generarRecomendacionHoy}><button className="boton-secundario">Generar ahora</button></form>}
-            </div>
-          )}
           <p className="mt-2 text-xs text-tinta-suave">Una vez al día, con el pronóstico, tus aplicaciones por hacer y el plan de labores. Es una ayuda: la decisión sobre productos y dosis es del asesor, y siempre hay que mirar el campo.</p>
         </section>
       )}
@@ -66,13 +54,15 @@ export default async function Clima({ searchParams }: { searchParams: Promise<{ 
       {clima && (
         <>
           {clima.actual && (
-            <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <div className="tarjeta p-4"><p className="text-xs uppercase tracking-wide text-tinta-suave">Ahora</p><p className="mt-1 text-2xl font-semibold">{num(clima.actual.temp, 1)} °C</p></div>
-              <div className="tarjeta p-4"><p className="text-xs uppercase tracking-wide text-tinta-suave">Viento</p><p className="mt-1 text-2xl font-semibold">{num(clima.actual.viento, 0)} km/h</p></div>
-              <div className="tarjeta p-4"><p className="text-xs uppercase tracking-wide text-tinta-suave">Humedad</p><p className="mt-1 text-2xl font-semibold">{clima.actual.humedad != null ? `${clima.actual.humedad} %` : "—"}</p></div>
-              <div className="tarjeta p-4"><p className="text-xs uppercase tracking-wide text-tinta-suave">Lluvia ahora</p><p className="mt-1 text-2xl font-semibold">{num(clima.actual.lluvia, 1)} mm</p></div>
+            <section className="tarjeta mb-4 grid grid-cols-4 divide-x divide-linea">
+              <div className="p-3 sm:p-4"><p className="text-[11px] uppercase tracking-wide text-tinta-suave">Ahora</p><p className="mt-0.5 text-2xl font-semibold tabular-nums sm:text-3xl">{Math.round(clima.actual.temp)}°</p></div>
+              <div className="p-3 sm:p-4"><p className="text-[11px] uppercase tracking-wide text-tinta-suave">Lluvia</p><p className={`mt-1 text-lg font-semibold tabular-nums ${clima.actual.lluvia > 0 ? "text-agua" : ""}`}>{num(clima.actual.lluvia, 1)}<span className="text-xs font-normal"> mm</span></p></div>
+              <div className="p-3 sm:p-4"><p className="text-[11px] uppercase tracking-wide text-tinta-suave">Viento</p><p className="mt-1 text-lg font-semibold tabular-nums">{num(clima.actual.viento, 0)}<span className="text-xs font-normal"> km/h</span></p></div>
+              <div className="p-3 sm:p-4"><p className="text-[11px] uppercase tracking-wide text-tinta-suave">Humedad</p><p className="mt-1 text-lg font-semibold tabular-nums">{clima.actual.humedad != null ? `${clima.actual.humedad}%` : "—"}</p></div>
             </section>
           )}
+
+          <Pronostico dias={clima.dias} hoy={hoy} />
 
           <section className="tarjeta mb-4">
             <h2 className="p-4 pb-2 font-semibold">Alertas de los próximos días</h2>
@@ -106,24 +96,22 @@ export default async function Clima({ searchParams }: { searchParams: Promise<{ 
             </section>
           )}
 
-          <section className="tarjeta mb-4 overflow-x-auto">
-            <table className="tabla">
-              <thead><tr><th>Día</th><th className="text-right">Mínima</th><th className="text-right">Máxima</th><th className="text-right">Lluvia</th><th className="text-right">Viento</th></tr></thead>
-              <tbody>
-                {clima.dias.map((d) => (
-                  <tr key={d.fecha} className={d.fecha < hoy ? "text-tinta-suave" : ""}>
-                    <td className="whitespace-nowrap capitalize">{nombreDiaClima(d.fecha)} {fecha(d.fecha).slice(0, 5)}{d.fecha === hoy && <span className="pastilla ml-1.5 bg-verde-claro text-verde-oscuro">hoy</span>}{d.fecha < hoy && <span className="ml-1.5 text-xs">(pasado)</span>}</td>
-                    <td className={`text-right ${d.fecha >= hoy && d.tmin <= UMBRALES.heladaMedia ? "font-semibold text-alerta" : ""}`}>{num(d.tmin, 1)} °C</td>
-                    <td className="text-right">{num(d.tmax, 1)} °C</td>
-                    <td className={`text-right ${d.lluvia >= UMBRALES.lluvia ? "font-semibold text-ambar" : ""}`}>{num(d.lluvia, 1)} mm{d.probLluvia != null && d.fecha >= hoy ? ` · ${d.probLluvia}%` : ""}</td>
-                    <td className={`text-right ${d.viento >= UMBRALES.vientoMedio ? "font-semibold text-ambar" : ""}`}>{num(d.viento, 0)} km/h</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
         </>
       )}
+
+      {verProgramas && (
+        <section className="tarjeta mb-4 p-4">
+          <h2 className="mb-1 font-semibold">Recomendación del día <span className="pastilla ml-1 bg-verde-claro text-verde-oscuro">IA</span></h2>
+          {reco ? (
+            <p className="whitespace-pre-line text-sm">{reco.texto}</p>
+          ) : !hayClaveIA() ? (
+            <p className="text-sm text-tinta-suave">Todavía no está activada: falta la clave de la IA en Vercel (variable ANTHROPIC_API_KEY).</p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-tinta-suave">Hoy todavía no se ha generado. Se genera sola cada mañana, o puedes pedirla ahora.</p>
+              {edita && <form action={generarRecomendacionHoy}><button className="boton-secundario">Generar ahora</button></form>}
+            </div>
+          )}
 
       <section className="tarjeta p-4">
         <h2 className="mb-1 font-semibold">Ubicación del campo</h2>
