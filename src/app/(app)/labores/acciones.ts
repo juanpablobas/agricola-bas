@@ -128,7 +128,7 @@ export async function crearTrabajador(_: EstadoFormulario, form: FormData): Prom
   const { supabase } = await exigirRol(...ROLES);
   const nombre = leerTexto(form.get("nombre"));
   if (!nombre) return { error: "Escribe el nombre del trabajador." };
-  const { error } = await supabase.from("trabajador").insert({ nombre, vive_en_campo: form.get("vive") === "on" });
+  const { error } = await supabase.from("trabajador").insert({ nombre, vive_en_campo: form.get("vive") === "on", telefono: leerTexto(form.get("telefono")) });
   if (error) return { error: error.code === "23505" ? "Ya existe un trabajador con ese nombre." : "No se pudo guardar." };
   revalidatePath("/labores", "layout");
   return { ok: "Trabajador agregado." };
@@ -139,7 +139,7 @@ export async function editarTrabajador(form: FormData) {
   const id = idOpc(form.get("id"));
   const nombre = leerTexto(form.get("nombre"));
   if (!id || !nombre) redirect("/labores/catalogos?error=1");
-  const { error } = await supabase.from("trabajador").update({ nombre, vive_en_campo: form.get("vive") === "on" }).eq("id", id);
+  const { error } = await supabase.from("trabajador").update({ nombre, vive_en_campo: form.get("vive") === "on", telefono: leerTexto(form.get("telefono")) }).eq("id", id);
   if (error) redirect("/labores/catalogos?error=1");
   revalidatePath("/labores", "layout");
   redirect("/labores/catalogos?ok=1");

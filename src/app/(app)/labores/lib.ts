@@ -7,15 +7,20 @@ export async function cargarOpciones(supabase: SupabaseClient, incluir?: { cuadr
   const [{ data: cu }, { data: la }, { data: cd }, { data: tr }] = await Promise.all([
     supabase.from("v_cuartel").select("id, codigo, especie, variedad").eq("activo", true).order("codigo").range(0, 999),
     supabase.from("labor_tipo").select("id, nombre, activo").order("nombre"),
-    supabase.from("cuadrilla").select("id, nombre, jefe, activo").order("nombre"),
-    supabase.from("trabajador").select("id, nombre, vive_en_campo, activo").order("nombre"),
+    supabase.from("cuadrilla").select("id, nombre, jefe, telefono, activo").order("nombre"),
+    supabase.from("trabajador").select("id, nombre, vive_en_campo, telefono, activo").order("nombre"),
   ]);
   const etiquetaCuartel = (c: any) => `${c.codigo}${c.especie ? " · " + c.especie : ""}${c.variedad ? " " + c.variedad : ""}`;
   const cuarteles: Op[] = ((cu ?? []) as any[]).map((c) => ({ id: c.id, texto: etiquetaCuartel(c) }));
   const labores: Op[] = ((la ?? []) as any[]).filter((l) => l.activo || l.id === incluir?.labor).map((l) => ({ id: l.id, texto: l.nombre }));
   const cuadrillas: Op[] = ((cd ?? []) as any[]).filter((c) => c.activo || c.id === incluir?.cuadrilla).map((c) => ({ id: c.id, texto: c.jefe ? `${c.nombre} (${c.jefe})` : c.nombre }));
   const trabajadores: Op[] = ((tr ?? []) as any[]).filter((t) => t.activo || t.id === incluir?.fiscalizador).map((t) => ({ id: t.id, texto: t.nombre }));
-  return { cuarteles, labores, cuadrillas, trabajadores, nombres: {
+  return { cuarteles, labores, cuadrillas, trabajadores,
+    telefonos: {
+      trabajador: new Map<string, string | null>(((tr ?? []) as any[]).map((t) => [t.id, t.telefono])),
+      cuadrilla: new Map<string, string | null>(((cd ?? []) as any[]).map((c) => [c.id, c.telefono])),
+    },
+    nombres: {
     trabajador: new Map<string, string>(((tr ?? []) as any[]).map((t) => [t.id, t.nombre])),
     cuartel: new Map<string, string>(cuarteles.map((c) => [c.id, c.texto])),
     labor: new Map<string, string>(((la ?? []) as any[]).map((l) => [l.id, l.nombre])),

@@ -7,6 +7,7 @@ import { Aviso } from "@/components/Aviso";
 import { Icono } from "@/components/Icono";
 import { borrarPlan, borrarRegistro, cambiarEstadoPlan } from "./acciones";
 import { cargarOpciones } from "./lib";
+import { enlaceWhatsapp, telefonoChile } from "@/lib/whatsapp";
 
 export const metadata = { title: "Labores" };
 
@@ -71,6 +72,23 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
               {edita && (
                 <div className="flex items-center gap-3 text-sm">
                   {x.estado === "pendiente" && <Link href={`/labores/registrar?plan=${x.id}`} className="font-medium text-verde hover:underline">Registrar</Link>}
+                  {x.estado === "pendiente" && (() => {
+                    const labor = op.nombres.labor.get(x.labor_tipo_id) ?? "Labor";
+                    const donde = x.cuartel_id ? `en el cuartel ${op.nombres.cuartel.get(x.cuartel_id)}` : "en el campo";
+                    const cuando = `esta semana (del ${corta(semana)} al ${corta(fin)})`;
+                    const gato = x.cuadrilla_id ? op.nombres.cuadrilla.get(x.cuadrilla_id) : null;
+                    const nota = x.observacion ? ` ${x.observacion}.` : "";
+                    const aFisc = x.fiscalizador_id ? `Hola ${op.nombres.trabajador.get(x.fiscalizador_id)}, ${cuando} toca ${labor.toLowerCase()} ${donde}.${gato ? ` Trabaja ${gato}: tú fiscalizas que quede bien hecha.` : " Tú fiscalizas que quede bien hecha."}${nota} Cuando termine, avísame para registrarla. — Agrícola BAS` : null;
+                    const aGato = gato ? `Hola, ${cuando} toca ${labor.toLowerCase()} ${donde}.${x.personas_previstas ? ` Necesitamos ${x.personas_previstas} personas.` : ""}${nota} Confirmame por favor. — Agrícola BAS` : null;
+                    const telF = x.fiscalizador_id ? op.telefonos.trabajador.get(x.fiscalizador_id) : null;
+                    const telG = x.cuadrilla_id ? op.telefonos.cuadrilla.get(x.cuadrilla_id) : null;
+                    return (
+                      <>
+                        {aFisc && <a href={enlaceWhatsapp(telF, aFisc)} target="_blank" rel="noopener noreferrer" className="hover:underline" title={telefonoChile(telF) ? "Abre WhatsApp con el mensaje listo" : "Sin celular guardado: WhatsApp te deja elegir el contacto"}>Avisar al fiscalizador</a>}
+                        {aGato && <a href={enlaceWhatsapp(telG, aGato)} target="_blank" rel="noopener noreferrer" className="hover:underline">Avisar a la cuadrilla</a>}
+                      </>
+                    );
+                  })()}
                   <form action={cambiarEstadoPlan}>
                     <input type="hidden" name="id" value={x.id} /><input type="hidden" name="semana" value={semana} />
                     <input type="hidden" name="estado" value={x.estado === "pendiente" ? "cancelada" : "pendiente"} />

@@ -13,7 +13,7 @@ export default async function Catalogos({ searchParams }: { searchParams: Promis
   const [{ data: cuadrillas }, { data: labores }, { data: trabajadores }] = await Promise.all([
     supabase.from("cuadrilla").select("id, nombre, jefe, tipo, telefono, activo").order("nombre"),
     supabase.from("labor_tipo").select("id, nombre, activo").order("nombre"),
-    supabase.from("trabajador").select("id, nombre, vive_en_campo, activo").order("nombre"),
+    supabase.from("trabajador").select("id, nombre, vive_en_campo, telefono, activo").order("nombre"),
   ]);
   const alterna = (tabla: string, x: any) => edita && (
     <form action={alternarActivo}>
@@ -61,11 +61,12 @@ export default async function Catalogos({ searchParams }: { searchParams: Promis
               <form action={editarTrabajador} className="flex flex-1 flex-wrap items-center gap-3">
                 <input type="hidden" name="id" value={t.id} />
                 <input name="nombre" defaultValue={t.nombre} required className="entrada min-w-40 flex-1" aria-label="Nombre del trabajador" />
+                <input name="telefono" defaultValue={t.telefono ?? ""} inputMode="tel" placeholder="Celular" className="entrada w-36" aria-label="Celular" />
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="vive" defaultChecked={t.vive_en_campo} className="size-4 accent-verde" />Vive en el campo</label>
                 <button className="boton-secundario">Guardar</button>
               </form>
             ) : (
-              <p className="flex-1 font-medium">{t.nombre}{t.vive_en_campo && <span className="pastilla ml-2 bg-verde-claro text-verde-oscuro">vive en el campo</span>}</p>
+              <p className="flex-1 font-medium">{t.nombre}{t.telefono ? <span className="ml-2 text-sm font-normal text-tinta-suave">{t.telefono}</span> : null}{t.vive_en_campo && <span className="pastilla ml-2 bg-verde-claro text-verde-oscuro">vive en el campo</span>}</p>
             )}
             {!t.activo && <span className="pastilla bg-linea/60">inactivo</span>}
             <div className="flex items-center gap-4">{alterna("trabajador", t)}{borra("trabajador", t)}</div>

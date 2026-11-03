@@ -7,6 +7,7 @@ import { Icono } from "@/components/Icono";
 import { NOMBRE_MES, MESES_TEMPORADA } from "@/lib/programas";
 import { cargarSeguimiento, type Pendiente } from "@/lib/seguimiento";
 import { fecha } from "@/lib/formato";
+import { enlaceWhatsapp } from "@/lib/whatsapp";
 import { posponerAplicacion, reactivarAplicacion } from "./acciones";
 
 export const metadata = { title: "Programas" };
@@ -77,6 +78,7 @@ export default async function Programas({ searchParams }: { searchParams: Promis
                 {puedeGestionar && (
                   <div className="mt-2 flex flex-wrap items-start gap-4 text-sm">
                     <Link href={`/programas/aplicar?v=${g[0].variedad_id}&a=${x.app_id}`} className="font-medium text-verde hover:underline">Registrar</Link>
+                    <a href={enlaceWhatsapp(null, `Recordatorio Agrícola BAS: ${x.situacion === "atrasada" ? "está atrasada" : "toca"} la aplicación ${x.orden}. ${x.titulo} (${x.programa}) en ${g.map((v) => v.variedad).join(", ")}.${x.nueva_fecha ? ` Quedó para el ${fecha(x.nueva_fecha)}.` : ""} Avísame cuando se haga para registrarla.`)} target="_blank" rel="noopener noreferrer" className="hover:underline">Avisar por WhatsApp</a>
                     <details>
                       <summary className="cursor-pointer hover:underline">No se pudo / postergar</summary>
                       <form action={posponerAplicacion} className="mt-2 flex max-w-lg flex-col gap-3 rounded-lg border border-linea bg-papel/50 p-3">

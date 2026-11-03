@@ -34,6 +34,7 @@ export function FormTrabajador() {
   return (
     <form action={enviar} className="flex flex-wrap items-end gap-3">
       <div className="min-w-48 flex-1"><label htmlFor="t-nombre" className="etiqueta-campo">Nuevo trabajador</label><input id="t-nombre" name="nombre" required className="entrada" /></div>
+      <div className="w-44"><label htmlFor="t-tel" className="etiqueta-campo">Celular (opcional)</label><input id="t-tel" name="telefono" inputMode="tel" className="entrada" placeholder="9 1234 5678" /></div>
       <label className="flex items-center gap-2 pb-2.5 text-sm"><input type="checkbox" name="vive" className="size-4 accent-verde" />Vive en el campo</label>
       <BotonEnviar>Agregar trabajador</BotonEnviar>
       <div className="w-full"><ResultadoFormulario estado={estado} /></div>
