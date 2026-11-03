@@ -65,7 +65,9 @@ export async function usarOpcion(form: FormData) {
       if (!error) cambiadas++;
     }
   }
-  if (cambiadas === 0) redirect("/programas/opciones?error=1");
+  const volver = String(form.get("volver") ?? "");
+  const aPedido = volver.startsWith("/programas/pedido");
+  if (cambiadas === 0) redirect(aPedido ? `${volver}&error=opcion` : "/programas/opciones?error=1");
   revalidatePath("/programas", "layout");
-  redirect(`/programas/opciones?ok=usada&n=${cambiadas}`);
+  redirect(aPedido ? `${volver}&ok=usada&opcion=${encodeURIComponent(opcion)}` : `/programas/opciones?ok=usada&n=${cambiadas}`);
 }
