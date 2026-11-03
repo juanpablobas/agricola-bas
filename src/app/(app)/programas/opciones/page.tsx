@@ -8,15 +8,24 @@ import { guardarPrecio, usarOpcion } from "./acciones";
 
 export const metadata = { title: "Opciones y precios" };
 
-type L = { id: string; aplicacion_id: string; orden: number; producto: string; unidad: string | null; dosis_ha: number | null; alternativas: string | null; grupo_alt: number | null };
-type Opcion = { nombre: string; dosis: number | null; propia: boolean };
+type L = { id: string; aplicacion_id: string; orden: number; producto: string; unidad: string | null; dosis_ha: number | null; conc_100l: number | null; mojam_programa: number | null; alternativas: string | null; grupo_alt: number | null };
+type Opcion = { nombre: string; dosis: number | null; conc: number | null; propia: boolean };
+const IVA = 1.19;
+/** 0,02 L por 100 L → "20 cc / 100 L"; 1,5 → "1,5 L / 100 L" */
+const por100 = (conc: number | null, unidad: string | null) => {
+  if (conc === null || !(conc > 0)) return null;
+  const peque = conc < 1;
+  const u = (unidad ?? "").toLowerCase();
+  const sub = u.startsWith("k") ? "g" : u.startsWith("l") ? "cc" : null;
+  return peque && sub ? `${num(conc * 1000, 0)} ${sub} / 100 L` : `${num(conc, 2)} ${unidad ?? ""} / 100 L`;
+};
 
 export default async function Opciones({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; n?: string; q?: string }> }) {
   const q = await searchParams;
   const { supabase, perfil } = await exigirRol("administrador", "enc_administrativo", "enc_agricola", "propietario");
   const edita = puede(perfil.rol, "administrador", "enc_administrativo");
 
-  const lineas = await leerTodo<L>((d, h) => supabase.from("programa_linea").select("id, aplicacion_id, orden, producto, unidad, dosis_ha, alternativas, grupo_alt").order("orden").range(d, h));
+  const lineas = await leerTodo<L>((d, h) => supabase.from("programa_linea").select("id, aplicacion_id, orden, producto, unidad, dosis_ha, conc_100l, mojam_programa, alternativas, grupo_alt").order("orden").range(d, h));
   const [{ data: prods }, { data: ingresos }, { data: refs }] = await Promise.all([
     supabase.from("producto").select("id, nombre").range(0, 1999),
     supabase.from("mov_inventario").select("producto_id, fecha, valor_unitario").eq("tipo", "ingreso").gt("valor_unitario", 0).order("fecha", { ascending: false }).range(0, 4999),
@@ -39,18 +48,18 @@ export default async function Opciones({ searchParams }: { searchParams: Promise
   // Productos principales con sus opciones (escritas como texto o como líneas con dosis propia)
   const porApp = new Map<string, L[]>();
   for (const l of lineas) porApp.set(l.aplicacion_id, [...(porApp.get(l.aplicacion_id) ?? []), l]);
-  const grupos = new Map<string, { nombre: string; unidad: string | null; usos: number; dosis: number | null; opciones: Map<string, Opcion> }>();
+  const grupos = new Map<string, { nombre: string; unidad: string | null; usos: number; dosis: number | null; conc: number | null; opciones: Map<string, Opcion> }>();
   for (const [, ls] of porApp) {
     const ord = [...ls].sort((a, b) => a.orden - b.orden);
     ord.forEach((l, i) => {
       if ((l.grupo_alt ?? 0) !== 0) return;
-      const g = grupos.get(clave(l.producto)) ?? { nombre: l.producto, unidad: l.unidad, usos: 0, dosis: l.dosis_ha === null ? null : Number(l.dosis_ha), opciones: new Map<string, Opcion>() };
+      const g = grupos.get(clave(l.producto)) ?? { nombre: l.producto, unidad: l.unidad, usos: 0, dosis: l.dosis_ha === null ? null : Number(l.dosis_ha), conc: l.conc_100l !== null && Number(l.mojam_programa ?? 0) >= 100 ? Number(l.conc_100l) : null, opciones: new Map<string, Opcion>() };
       g.usos++;
       if (!g.unidad && l.unidad) g.unidad = l.unidad;
-      for (const t of opcionesDeTexto(l.alternativas)) if (clave(t) !== clave(l.producto) && !g.opciones.has(clave(t))) g.opciones.set(clave(t), { nombre: t, dosis: null, propia: false });
+      for (const t of opcionesDeTexto(l.alternativas)) if (clave(t) !== clave(l.producto) && !g.opciones.has(clave(t))) g.opciones.set(clave(t), { nombre: t, dosis: null, conc: null, propia: false });
       for (let j = i + 1; j < ord.length && (ord[j].grupo_alt ?? 0) !== 0; j++) {
         const a = ord[j];
-        if (clave(a.producto) !== clave(l.producto)) g.opciones.set(clave(a.producto), { nombre: a.producto, dosis: a.dosis_ha === null ? null : Number(a.dosis_ha), propia: true });
+        if (clave(a.producto) !== clave(l.producto)) g.opciones.set(clave(a.producto), { nombre: a.producto, dosis: a.dosis_ha === null ? null : Number(a.dosis_ha), conc: a.conc_100l !== null && Number(a.mojam_programa ?? 0) >= 100 ? Number(a.conc_100l) : null, propia: true });
       }
       grupos.set(clave(l.producto), g);
     });
@@ -68,7 +77,7 @@ export default async function Opciones({ searchParams }: { searchParams: Promise
       {q.error && <div className="mb-3"><Aviso tipo="error">No se pudo guardar. Revisa el valor e intenta de nuevo.</Aviso></div>}
       <div className="mb-3">
         <Aviso>
-          Escribe el precio con IVA por kilo o litro. Si no escribes uno, se usa el último precio con que compraste ese producto en bodega (si existe). Las opciones escritas solo con nombre se calculan con la dosis del producto principal: antes de comprar, confirma con el asesor la dosis de la opción que elijas.
+          Escribe el precio neto (sin IVA) por kilo o litro: la app le suma el 19%. Si no escribes uno, se usa el último precio con que compraste ese producto en bodega (si existe). Las opciones escritas solo con nombre se calculan con la dosis del producto principal: antes de comprar, confirma con el asesor la dosis de la opción que elijas.
         </Aviso>
       </div>
 
@@ -82,11 +91,11 @@ export default async function Opciones({ searchParams }: { searchParams: Promise
 
       <div className="flex flex-col gap-4">
         {lista.map((g) => {
-          const todas = [{ nombre: g.nombre, dosis: g.dosis, propia: true, actual: true }, ...[...g.opciones.values()].map((o) => ({ ...o, actual: false }))];
+          const todas = [{ nombre: g.nombre, dosis: g.dosis, conc: g.conc, propia: true, actual: true }, ...[...g.opciones.values()].map((o) => ({ ...o, actual: false }))];
           const costo = (o: { nombre: string; dosis: number | null; propia: boolean }) => {
             const p = precioDe(o.nombre);
             const d = o.propia ? o.dosis : g.dosis;
-            return p && d !== null ? p.precio * d : null;
+            return p && d !== null ? p.precio * d * IVA : null;
           };
           const costos = todas.map(costo).filter((c): c is number => c !== null);
           const minimo = costos.length > 1 ? Math.min(...costos) : null;
@@ -106,13 +115,16 @@ export default async function Opciones({ searchParams }: { searchParams: Promise
                       <div className="min-w-40 flex-1">
                         <p className="font-medium">{o.nombre}{o.actual && <span className="pastilla ml-1.5 bg-verde-claro text-verde-oscuro">principal ahora</span>}{barata && <span className="pastilla ml-1.5 bg-verde-claro text-verde-oscuro">más barata</span>}</p>
                         <p className="text-xs text-tinta-suave">
-                          {p ? `${p.fuente === "tuyo" ? "Precio anotado" : "Última compra"} ${fecha(p.fecha)}: ${clp(p.precio)}` : "Sin precio"}
-                          {c !== null ? ` · ${clp(Math.round(c))} por ha${o.propia ? "" : " (dosis supuesta igual)"}` : ""}
+                          {(() => { const d100 = por100(o.propia ? o.conc : g.conc, g.unidad); const dh = o.propia ? o.dosis : g.dosis; return d100 || dh !== null ? `Dosis: ${[d100, dh !== null ? `${num(dh, 2)} ${g.unidad ?? ""} / ha` : null].filter(Boolean).join(" · ")}${o.propia ? "" : " (igual al principal)"}` : "Dosis sin dato"; })()}
+                        </p>
+                        <p className="text-xs text-tinta-suave">
+                          {p ? `${p.fuente === "tuyo" ? "Precio anotado" : "Última compra"} ${fecha(p.fecha)}: ${clp(p.precio)} + IVA` : "Sin precio"}
+                          {c !== null ? ` · ${clp(Math.round(c))} por ha con IVA` : ""}
                         </p>
                       </div>
                       {edita && (
                         <>
-                          <input name="precio" defaultValue={p?.fuente === "tuyo" ? String(p.precio).replace(".", ",") : ""} inputMode="decimal" className="entrada w-28" placeholder="Precio" aria-label={`Precio de ${o.nombre}`} />
+                          <input name="precio" defaultValue={p?.fuente === "tuyo" ? String(p.precio).replace(".", ",") : ""} inputMode="decimal" className="entrada w-28" placeholder="Precio neto" aria-label={`Precio de ${o.nombre}`} />
                           <button formAction={guardarPrecio} className="boton-secundario">Guardar precio</button>
                           {!o.actual && <button formAction={usarOpcion} className="boton">Usar esta</button>}
                         </>
