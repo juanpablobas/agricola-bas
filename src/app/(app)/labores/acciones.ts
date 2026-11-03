@@ -134,6 +134,17 @@ export async function crearTrabajador(_: EstadoFormulario, form: FormData): Prom
   return { ok: "Trabajador agregado." };
 }
 
+export async function editarTrabajador(form: FormData) {
+  const { supabase } = await exigirRol(...ROLES);
+  const id = idOpc(form.get("id"));
+  const nombre = leerTexto(form.get("nombre"));
+  if (!id || !nombre) redirect("/labores/catalogos?error=1");
+  const { error } = await supabase.from("trabajador").update({ nombre, vive_en_campo: form.get("vive") === "on" }).eq("id", id);
+  if (error) redirect("/labores/catalogos?error=1");
+  revalidatePath("/labores", "layout");
+  redirect("/labores/catalogos?ok=1");
+}
+
 export async function alternarActivo(form: FormData) {
   const { supabase } = await exigirRol(...ROLES);
   const tabla = String(form.get("tabla") ?? "");

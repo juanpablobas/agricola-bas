@@ -1,11 +1,13 @@
 import { exigirRol, puede } from "@/lib/auth";
 import { Encabezado } from "@/components/Encabezado";
 import { FormCuadrilla, FormLabor, FormTrabajador } from "../FormCatalogo";
-import { alternarActivo } from "../acciones";
+import { alternarActivo, editarTrabajador } from "../acciones";
+import { Aviso } from "@/components/Aviso";
 
 export const metadata = { title: "Cuadrillas, trabajadores y labores" };
 
-export default async function Catalogos() {
+export default async function Catalogos({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
+  const q = await searchParams;
   const { supabase, perfil } = await exigirRol("administrador", "enc_administrativo", "enc_agricola", "propietario");
   const edita = puede(perfil.rol, "administrador", "enc_administrativo", "enc_agricola");
   const [{ data: cuadrillas }, { data: labores }, { data: trabajadores }] = await Promise.all([
@@ -22,6 +24,8 @@ export default async function Catalogos() {
   return (
     <>
       <Encabezado titulo="Cuadrillas, trabajadores y labores" subtitulo="Las listas que aparecen al planificar y registrar." volver={{ href: "/labores", texto: "Labores" }} />
+      {q.ok && <div className="mb-3"><Aviso tipo="ok">Guardado.</Aviso></div>}
+      {q.error && <div className="mb-3"><Aviso tipo="error">No se pudo guardar. Revisa que el nombre no esté vacío ni repetido.</Aviso></div>}
       <section className="tarjeta mb-4">
         <h2 className="p-4 pb-2 font-semibold">Cuadrillas</h2>
         {(cuadrillas ?? []).length === 0 && <p className="px-4 pb-3 text-sm text-tinta-suave">Todavía no hay cuadrillas. Agrega la primera abajo.</p>}
@@ -41,8 +45,18 @@ export default async function Catalogos() {
         <p className="px-4 pb-2 text-sm text-tinta-suave">Ellos son los que fiscalizan que el contratista haga bien cada labor.</p>
         {(trabajadores ?? []).length === 0 && <p className="px-4 pb-3 text-sm text-tinta-suave">Todavía no hay trabajadores. Agrega el primero abajo.</p>}
         {(trabajadores ?? []).map((t: any) => (
-          <div key={t.id} className={`flex flex-wrap items-center justify-between gap-2 border-t border-linea px-4 py-2.5 ${t.activo ? "" : "text-tinta-suave"}`}>
-            <p className="font-medium">{t.nombre}{t.vive_en_campo && <span className="pastilla ml-2 bg-verde-claro text-verde-oscuro">vive en el campo</span>}{!t.activo && <span className="pastilla ml-2 bg-linea/60">inactivo</span>}</p>
+          <div key={t.id} className={`flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-linea px-4 py-2.5 ${t.activo ? "" : "text-tinta-suave"}`}>
+            {edita ? (
+              <form action={editarTrabajador} className="flex flex-1 flex-wrap items-center gap-3">
+                <input type="hidden" name="id" value={t.id} />
+                <input name="nombre" defaultValue={t.nombre} required className="entrada min-w-40 flex-1" aria-label="Nombre del trabajador" />
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="vive" defaultChecked={t.vive_en_campo} className="size-4 accent-verde" />Vive en el campo</label>
+                <button className="boton-secundario">Guardar</button>
+              </form>
+            ) : (
+              <p className="flex-1 font-medium">{t.nombre}{t.vive_en_campo && <span className="pastilla ml-2 bg-verde-claro text-verde-oscuro">vive en el campo</span>}</p>
+            )}
+            {!t.activo && <span className="pastilla bg-linea/60">inactivo</span>}
             {alterna("trabajador", t)}
           </div>
         ))}
