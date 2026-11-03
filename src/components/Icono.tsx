@@ -24,6 +24,7 @@ const RUTAS: Record<string, string> = {
   alerta: "M12 4 2.5 20h19L12 4zM12 10v4M12 17v.5",
   ok: "M5 12.5l4.5 4.5L19 7.5",
   historia: "M3 12a9 9 0 1 0 3-6.7M3 4v4.5h4.5M12 8v4l3 2",
+  clima: "M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 8.5a4.75 4.75 0 0 1 0 9.5zM8 21l1-2M12 21l1-2M16 21l1-2",
   basura: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13",
 };
 

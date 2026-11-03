@@ -5,6 +5,7 @@ import { colorEspecie, etiquetaEstado } from "@/lib/etiquetas";
 import { Aviso } from "@/components/Aviso";
 import { Icono } from "@/components/Icono";
 import { cargarSeguimiento } from "@/lib/seguimiento";
+import { alertasDe, obtenerClima, ubicacionDelCampo, type Alerta } from "@/lib/clima";
 
 export const metadata = { title: "Inicio" };
 
@@ -108,6 +109,18 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
     }
   }
 
+  // Alertas del clima (helada, lluvia, viento) para hoy y mañana
+  let alertasClima: Alerta[] = [];
+  try {
+    const hoyC = new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
+    const mananaC = new Date(Date.now() + 86400000).toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
+    const ub = await ubicacionDelCampo(supabase);
+    const cl = ub ? await obtenerClima(ub) : null;
+    if (cl) alertasClima = alertasDe(cl.dias, hoyC, 2).filter((a) => a.fecha <= mananaC);
+  } catch {
+    /* si falla, el inicio se muestra igual */
+  }
+
   const maxEspecie = Math.max(...porEspecie.map((e) => e.ha), 1);
 
   return (
@@ -125,6 +138,15 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
       {error === "permiso" && (
         <div className="mb-4">
           <Aviso tipo="error">No tienes permiso para entrar a esa sección.</Aviso>
+        </div>
+      )}
+
+      {alertasClima.length > 0 && (
+        <div className="mb-4">
+          <Aviso tipo={alertasClima.some((a) => a.nivel === "alto") ? "error" : "info"}>
+            <strong>Clima:</strong> {alertasClima.map((a) => a.titulo).join(" · ")}.{" "}
+            <Link href="/clima" className="font-medium underline">Ver el pronóstico</Link>
+          </Aviso>
         </div>
       )}
 

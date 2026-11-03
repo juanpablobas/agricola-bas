@@ -48,9 +48,20 @@ export async function quitarSuscripcion(endpoint: string): Promise<EstadoFormula
 
 /** Manda un aviso de prueba a todos los celulares activados de quien lo pide */
 export async function enviarPrueba(): Promise<EstadoFormulario> {
-  const { user } = await obtenerSesion();
-  const r = await enviarAvisos(crearClienteAdmin(), [user.id], { title: "Agrícola BAS", body: "Prueba de aviso: si lo ves, las notificaciones funcionan.", url: "/" });
-  if (r.celulares === 0) return { error: "No hay celulares activados con tu usuario." };
-  if (r.enviados === 0) return { error: "No se pudo enviar el aviso. Intenta activar los avisos de nuevo." };
-  return { ok: `Aviso enviado a ${r.enviados} ${r.enviados === 1 ? "celular" : "celulares"}. Debería llegar en unos segundos.` };
+  try {
+    const { user } = await obtenerSesion();
+    const r = await enviarAvisos(crearClienteAdmin(), [user.id], { title: "Agrícola BAS", body: "Prueba de aviso: si lo ves, las notificaciones funcionan.", url: "/" });
+    if (r.celulares === 0) return { error: "El servidor no tiene este celular guardado. Desactiva y vuelve a activar los avisos." };
+    if (r.enviados === 0) return { error: `El servicio de avisos del celular rechazó el envío (${r.errores[0] ?? "sin detalle"}). Desactiva y vuelve a activar los avisos; si se repite, avísale al administrador de la app con este texto.` };
+    return { ok: `Aviso enviado a ${r.enviados} ${r.enviados === 1 ? "celular" : "celulares"}. Debería llegar en unos segundos.` };
+  } catch (e: any) {
+    return { error: `No se pudo enviar la prueba: ${String(e?.message ?? e).slice(0, 200)}` };
+  }
+}
+
+/** ¿El servidor tiene guardado este celular? (para no mostrar "activado" si no quedó registrado) */
+export async function celularRegistrado(endpoint: string): Promise<boolean> {
+  const { supabase, user } = await obtenerSesion();
+  const { data } = await supabase.from("push_suscripcion").select("id").eq("endpoint", endpoint).eq("user_id", user.id).maybeSingle();
+  return !!data;
 }

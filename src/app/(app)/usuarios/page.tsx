@@ -5,12 +5,19 @@ import { Encabezado } from "@/components/Encabezado";
 import { BotonEnviar } from "@/components/BotonEnviar";
 import { FormularioUsuario } from "./FormularioUsuario";
 import { cambiarRol, cambiarEstadoUsuario } from "./acciones";
+import { crearClienteAdmin } from "@/lib/supabase/admin";
 
 export const metadata = { title: "Usuarios" };
 
 export default async function Usuarios() {
   const { supabase, user } = await exigirRol("administrador");
   const { data: perfiles } = await supabase.from("perfil").select("*").order("activo", { ascending: false }).order("nombre");
+  // Celulares con avisos activados por usuario (la tabla solo la ve cada dueño, por eso se lee con la llave de servicio)
+  const conAvisos = new Map<string, number>();
+  try {
+    const { data: subs } = await crearClienteAdmin().from("push_suscripcion").select("user_id");
+    for (const s of (subs ?? []) as { user_id: string }[]) conAvisos.set(s.user_id, (conAvisos.get(s.user_id) ?? 0) + 1);
+  } catch { /* si falla, la columna queda en blanco */ }
 
   return (
     <>
@@ -28,6 +35,7 @@ export default async function Usuarios() {
               <tr>
                 <th>Nombre</th>
                 <th>Rol</th>
+                <th>Avisos</th>
                 <th className="hidden sm:table-cell">Desde</th>
                 <th></th>
               </tr>
@@ -52,6 +60,7 @@ export default async function Usuarios() {
                       </form>
                     )}
                   </td>
+                  <td className="text-sm">{conAvisos.get(p.id) ? <span className="text-verde">Activados ({conAvisos.get(p.id)})</span> : <span className="text-tinta-suave">Sin activar</span>}</td>
                   <td className="hidden text-tinta-suave sm:table-cell">{fecha(p.creado_en)}</td>
                   <td className="text-right">
                     {p.id !== user.id && (

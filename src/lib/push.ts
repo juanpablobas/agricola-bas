@@ -16,7 +16,7 @@ export async function clavePublica(admin: SupabaseClient) {
 
 /** Envía un aviso a todos los celulares activados de los usuarios indicados. Borra los que ya no existen. */
 export async function enviarAvisos(admin: SupabaseClient, userIds: string[], aviso: Aviso) {
-  const res = { enviados: 0, fallidos: 0, celulares: 0 };
+  const res = { enviados: 0, fallidos: 0, celulares: 0, errores: [] as string[] };
   const ids = [...new Set(userIds)];
   if (ids.length === 0) return res;
   const claves = await leerClaves(admin);
@@ -37,6 +37,7 @@ export async function enviarAvisos(admin: SupabaseClient, userIds: string[], avi
         res.enviados++;
       } catch (e: any) {
         res.fallidos++;
+        res.errores.push(`${e?.statusCode ?? "sin código"}: ${String(e?.body ?? e?.message ?? e).slice(0, 160)}`);
         if (e?.statusCode === 404 || e?.statusCode === 410) await admin.from("push_suscripcion").delete().eq("id", s.id);
       }
     }),

@@ -48,8 +48,8 @@ export function FormPlan({ semana, cuarteles, labores, cuadrillas, trabajadores 
           <input id="personas" name="personas" inputMode="numeric" className="entrada" placeholder="Ej: 8" />
         </div>
         <div>
-          <label htmlFor="observacion" className="etiqueta-campo">Observación (opcional)</label>
-          <input id="observacion" name="observacion" className="entrada" placeholder="Ej: partir por las hileras de arriba" />
+          <label htmlFor="observacion" className="etiqueta-campo">Instrucciones para la labor (opcional)</label>
+          <input id="observacion" name="observacion" className="entrada" placeholder="Ej: partir por las hileras de arriba, dejar 2 frutos por racimo" />
         </div>
       </div>
       <ResultadoFormulario estado={estado} />
