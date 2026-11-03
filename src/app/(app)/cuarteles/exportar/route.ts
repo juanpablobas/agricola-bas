@@ -1,3 +1,4 @@
+import { hoyChile } from "@/lib/semana";
 import { NextResponse, type NextRequest } from "next/server";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { etiquetaEstado } from "@/lib/etiquetas";
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
   ].join(";"));
 
   const csv = "﻿" + [encabezado.join(";"), ...filas].join("\r\n");
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyChile();
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

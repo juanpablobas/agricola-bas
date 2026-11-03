@@ -1,3 +1,4 @@
+import { hoyChile } from "@/lib/semana";
 import { obtenerSesion, puede } from "@/lib/auth";
 import { fecha } from "@/lib/formato";
 import { colorEspecie } from "@/lib/etiquetas";
@@ -17,7 +18,7 @@ export default async function Campo() {
     supabase.from("centro_costo").select("id, codigo, nombre, tipo, activo").order("tipo", { ascending: false }).order("codigo"),
     supabase.from("especie").select("id, nombre, grupo, variedad(id, nombre)").order("nombre"),
   ]);
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyChile();
   const generales = (centros ?? []).filter((c: any) => c.tipo === "general");
   const deCuartel = (centros ?? []).filter((c: any) => c.tipo === "cuartel");
 

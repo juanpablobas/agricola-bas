@@ -4,41 +4,53 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Icono } from "./Icono";
 
-export type ItemMenu = { href: string; texto: string; icono: string };
+export type ItemMenu = { href: string; texto: string; icono: string; grupo?: string };
 
 function activo(ruta: string, href: string) {
   return href === "/" ? ruta === "/" : ruta === href || ruta.startsWith(href + "/");
 }
 
-function Marca() {
+function Marca({ compacta = false }: { compacta?: boolean }) {
   return (
-    <div className="rounded-xl bg-white px-3 py-2.5">
+    <div className={`rounded-xl bg-white ${compacta ? "px-2.5 py-1.5" : "px-3 py-2.5"}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.png" alt="Agrícola BAS · Frutícola" className="h-auto w-full max-w-44" />
+      <img src="/logo.png" alt="Agrícola BAS · Frutícola" className={`h-auto w-full ${compacta ? "max-w-32" : "max-w-44"}`} />
     </div>
   );
 }
 
 function Lista({ items, ruta, alElegir }: { items: ItemMenu[]; ruta: string; alElegir?: () => void }) {
+  const grupos: { nombre: string; items: ItemMenu[] }[] = [];
+  for (const i of items) {
+    const g = i.grupo ?? "";
+    const ult = grupos.at(-1);
+    if (ult && ult.nombre === g) ult.items.push(i);
+    else grupos.push({ nombre: g, items: [i] });
+  }
   return (
-    <nav className="flex flex-col gap-0.5">
-      {items.map((i) => {
-        const a = activo(ruta, i.href);
-        return (
-          <Link
-            key={i.href}
-            href={i.href}
-            onClick={alElegir}
-            aria-current={a ? "page" : undefined}
-            className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
-              a ? "bg-white/12 text-white" : "text-white/70 hover:bg-white/6 hover:text-white"
-            }`}
-          >
-            <Icono nombre={i.icono} className="size-5 shrink-0" />
-            {i.texto}
-          </Link>
-        );
-      })}
+    <nav className="flex flex-col gap-4">
+      {grupos.map((g) => (
+        <div key={g.nombre} className="flex flex-col gap-0.5">
+          {g.nombre && <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">{g.nombre}</p>}
+          {g.items.map((i) => {
+            const a = activo(ruta, i.href);
+            return (
+              <Link
+                key={i.href}
+                href={i.href}
+                onClick={alElegir}
+                aria-current={a ? "page" : undefined}
+                className={`flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+                  a ? "bg-white/12 text-white" : "text-white/70 hover:bg-white/6 hover:text-white"
+                }`}
+              >
+                <Icono nombre={i.icono} className="size-5 shrink-0" />
+                {i.texto}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }
@@ -82,7 +94,7 @@ export function Navegacion({
   return (
     <>
       {/* Computador: menú lateral fijo */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col justify-between bg-verde-oscuro p-4 lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col justify-between gap-4 overflow-y-auto bg-verde-oscuro p-4 lg:flex">
         <div className="flex flex-col gap-6">
           <Marca />
           <Lista items={items} ruta={ruta} />
@@ -91,8 +103,8 @@ export function Navegacion({
       </aside>
 
       {/* Celular: barra superior */}
-      <div className="sticky top-0 z-30 flex items-center justify-between bg-verde-oscuro px-4 py-2.5 lg:hidden">
-        <Marca />
+      <div className="sticky top-0 z-30 flex items-center justify-between bg-verde-oscuro px-4 py-2 lg:hidden">
+        <Marca compacta />
         <button
           onClick={() => setAbierto(true)}
           className="grid size-11 place-items-center rounded-lg text-white hover:bg-white/10"
@@ -106,7 +118,7 @@ export function Navegacion({
       {abierto && (
         <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
           <button className="absolute inset-0 bg-black/40" onClick={() => setAbierto(false)} aria-label="Cerrar menú" />
-          <div className="absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col justify-between bg-verde-oscuro p-4">
+          <div className="absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col justify-between gap-4 overflow-y-auto bg-verde-oscuro p-4">
             <div className="flex flex-col gap-6">
               <div className="flex items-center justify-between">
                 <Marca />
@@ -126,7 +138,7 @@ export function Navegacion({
       )}
 
       {/* Celular: barra inferior con accesos directos */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-linea bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-linea bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
         {barraMovil.map((i) => {
           const a = activo(ruta, i.href);
           return (
@@ -142,6 +154,15 @@ export function Navegacion({
             </Link>
           );
         })}
+        <button
+          onClick={() => setAbierto(true)}
+          className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+            !barraMovil.some((i) => activo(ruta, i.href)) ? "text-verde" : "text-tinta-suave"
+          }`}
+        >
+          <Icono nombre="menu" className="size-6" />
+          Más
+        </button>
       </nav>
     </>
   );

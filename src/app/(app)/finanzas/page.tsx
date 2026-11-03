@@ -1,3 +1,4 @@
+import { hoyChile } from "@/lib/semana";
 import Link from "next/link";
 import { exigirRol } from "@/lib/auth";
 import { Encabezado } from "@/components/Encabezado";
@@ -22,7 +23,7 @@ export default async function Finanzas() {
   const { supabase, perfil } = await exigirRol("administrador", "enc_administrativo", "propietario");
   const puedeCargar = perfil.rol === "administrador" || perfil.rol === "enc_administrativo";
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyChile();
   const { data: temporadas } = await supabase.from("temporada").select("id, nombre, inicio, termino").order("inicio", { ascending: false });
   const temporada = (temporadas ?? []).find((t) => t.inicio <= hoy && t.termino >= hoy) ?? (temporadas ?? [])[0];
 

@@ -10,29 +10,37 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   let clavePush: string | null = null;
   try { clavePush = await clavePublica(crearClienteAdmin()); } catch { clavePush = null; }
 
+  const r = perfil.rol;
+  const tiene = (...roles: string[]) => roles.includes(r);
+  const AGRO = ["administrador", "enc_administrativo", "enc_agricola", "propietario"];
+  // Menú ordenado por uso: lo del día a día arriba, la administración abajo
   const items: ItemMenu[] = [
-    { href: "/", texto: "Inicio", icono: "inicio" },
-    { href: "/cuarteles", texto: "Cuarteles", icono: "cuarteles" },
-    { href: "/riego", texto: "Riego", icono: "riego" },
-    { href: "/campo", texto: "Campo", icono: "campo" },
+    { href: "/", texto: "Inicio", icono: "inicio", grupo: "Día a día" },
+    { href: "/labores", texto: "Labores", icono: "labores", grupo: "Día a día" },
+    ...(tiene(...AGRO) ? [{ href: "/programas", texto: "Programas", icono: "programas", grupo: "Día a día" }] : []),
+    { href: "/riego", texto: "Riego", icono: "riego", grupo: "Día a día" },
+    { href: "/clima", texto: "Clima", icono: "clima", grupo: "Día a día" },
+    ...(tiene(...AGRO) ? [{ href: "/cosecha", texto: "Cosecha", icono: "cosecha", grupo: "Día a día" }] : []),
+    ...(tiene(...AGRO) ? [{ href: "/inventario", texto: "Inventario", icono: "inventario", grupo: "Recursos" }] : []),
+    { href: "/cuarteles", texto: "Cuarteles", icono: "cuarteles", grupo: "Recursos" },
+    ...(tiene("administrador", "enc_administrativo", "propietario") ? [{ href: "/finanzas", texto: "Finanzas", icono: "finanzas", grupo: "Administración" }] : []),
+    ...(tiene("administrador") ? [{ href: "/usuarios", texto: "Usuarios", icono: "usuarios", grupo: "Administración" }] : []),
+    ...(tiene("administrador", "propietario") ? [{ href: "/actividad", texto: "Actividad", icono: "actividad", grupo: "Administración" }] : []),
+    { href: "/campo", texto: "Configuración", icono: "campo", grupo: "Administración" },
   ];
-  if (["administrador", "enc_administrativo", "propietario"].includes(perfil.rol))
-    items.splice(2, 0, { href: "/finanzas", texto: "Finanzas", icono: "finanzas" });
-  if (["administrador", "enc_administrativo", "enc_agricola", "propietario"].includes(perfil.rol))
-    items.splice(items.findIndex((i) => i.href === "/campo") + 1, 0, { href: "/inventario", texto: "Inventario", icono: "inventario" });
-  if (["administrador", "enc_administrativo", "enc_agricola", "propietario"].includes(perfil.rol))
-    items.splice(items.findIndex((i) => i.href === "/inventario") + 1, 0, { href: "/programas", texto: "Programas", icono: "programas" });
-  items.splice(items.findIndex((i) => i.href === "/campo") + 1, 0, { href: "/labores", texto: "Labores", icono: "labores" });
-  if (["administrador", "enc_administrativo", "enc_agricola", "propietario"].includes(perfil.rol))
-    items.splice(items.findIndex((i) => i.href === "/campo") + 1, 0, { href: "/cosecha", texto: "Cosecha", icono: "cosecha" });
-  items.splice(items.findIndex((i) => i.href === "/campo") + 1, 0, { href: "/clima", texto: "Clima", icono: "clima" });
-  if (perfil.rol === "administrador") items.push({ href: "/usuarios", texto: "Usuarios", icono: "usuarios" });
-  if (perfil.rol === "administrador" || perfil.rol === "propietario")
-    items.push({ href: "/actividad", texto: "Actividad", icono: "actividad" });
+  // Barra inferior del celular: los 4 accesos más usados según el rol (el resto queda en "Menú")
+  const preferidos =
+    r === "propietario" ? ["/", "/finanzas", "/programas", "/clima"]
+    : r === "enc_administrativo" ? ["/", "/finanzas", "/inventario", "/labores"]
+    : ["/", "/labores", "/programas", "/clima"];
+  const barraMovil = [
+    ...preferidos.map((h) => items.find((i) => i.href === h)).filter((i): i is ItemMenu => !!i),
+    ...items.filter((i) => !preferidos.includes(i.href)),
+  ].slice(0, 4);
 
   return (
     <div className="min-h-dvh">
-      <Navegacion items={items} barraMovil={items.slice(0, 4)} nombre={perfil.nombre} rol={etiquetaRol(perfil.rol)} />
+      <Navegacion items={items} barraMovil={barraMovil} nombre={perfil.nombre} rol={etiquetaRol(perfil.rol)} />
       <main className="px-4 pb-24 pt-5 sm:px-6 lg:ml-64 lg:px-10 lg:pb-12 lg:pt-8">
         <div className="mx-auto max-w-6xl">
           <BannerAvisos clave={clavePush} />

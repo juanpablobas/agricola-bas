@@ -1,4 +1,5 @@
 "use server";
+import { hoyChile } from "@/lib/semana";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirRol } from "@/lib/auth";
@@ -17,7 +18,7 @@ export async function registrarSalida(_: EstadoFormulario, form: FormData): Prom
   if (!productoId) return { error: "Elige el producto." };
   if (cantidad === null || cantidad <= 0) return { error: "La cantidad debe ser mayor que cero." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: "Indica la fecha." };
-  if (fecha > new Date().toISOString().slice(0, 10)) return { error: "La fecha no puede ser futura." };
+  if (fecha > hoyChile()) return { error: "La fecha no puede ser futura." };
   if (!cecoId) return { error: "Elige a qué variedad o centro de costo se destinó." };
 
   const { data: p } = await supabase.from("v_stock").select("nombre, stock, unidad").eq("producto_id", productoId).maybeSingle();
