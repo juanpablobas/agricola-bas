@@ -73,5 +73,11 @@ export async function cambiarEstadoUsuario(form: FormData) {
   if (id === user.id) return; // nadie se desactiva a sí mismo
   const activo = form.get("activo") === "true";
   await supabase.from("perfil").update({ activo }).eq("id", id);
+  // Además de quitarle el permiso, se bloquea su cuenta para que su sesión no se pueda renovar
+  try {
+    await crearClienteAdmin().auth.admin.updateUserById(id, { ban_duration: activo ? "none" : "876000h" });
+  } catch {
+    /* el permiso ya quedó quitado en el perfil; el bloqueo extra es un refuerzo */
+  }
   revalidatePath("/usuarios");
 }

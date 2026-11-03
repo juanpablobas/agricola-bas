@@ -115,6 +115,7 @@ export default async function Clima({ searchParams }: { searchParams: Promise<{ 
         ) : null}
       </section>
       <p className="mt-3 max-w-2xl text-xs text-tinta-suave">
+        Estación del campo: <a href="https://alertas.agromet.cl/monitoreo/61" target="_blank" rel="noopener noreferrer" className="underline">ver Codegua Norte en Agromet</a> (datos medidos, solo para consultar; la app todavía no los lee).<br />
         Datos de Open-Meteo, que se actualizan cada media hora. Las alertas usan referencias generales (helada desde 2 °C de mínima, lluvia desde 1 mm, viento desde 15 km/h) y no reemplazan el criterio del asesor.
       </p>
     </>
