@@ -1,6 +1,6 @@
 "use client";
 import { useActionState } from "react";
-import { crearCuadrilla, crearLabor } from "./acciones";
+import { crearCuadrilla, crearLabor, crearTrabajador } from "./acciones";
 import { BotonEnviar } from "@/components/BotonEnviar";
 import { ResultadoFormulario } from "@/components/Aviso";
 
@@ -24,6 +24,18 @@ export function FormLabor() {
     <form action={enviar} className="flex flex-wrap items-end gap-3">
       <div className="min-w-48 flex-1"><label htmlFor="l-nombre" className="etiqueta-campo">Nueva labor</label><input id="l-nombre" name="nombre" required className="entrada" placeholder="Ej: Control de maleza" /></div>
       <BotonEnviar>Agregar labor</BotonEnviar>
+      <div className="w-full"><ResultadoFormulario estado={estado} /></div>
+    </form>
+  );
+}
+
+export function FormTrabajador() {
+  const [estado, enviar] = useActionState(crearTrabajador, null);
+  return (
+    <form action={enviar} className="flex flex-wrap items-end gap-3">
+      <div className="min-w-48 flex-1"><label htmlFor="t-nombre" className="etiqueta-campo">Nuevo trabajador</label><input id="t-nombre" name="nombre" required className="entrada" /></div>
+      <label className="flex items-center gap-2 pb-2.5 text-sm"><input type="checkbox" name="vive" className="size-4 accent-verde" />Vive en el campo</label>
+      <BotonEnviar>Agregar trabajador</BotonEnviar>
       <div className="w-full"><ResultadoFormulario estado={estado} /></div>
     </form>
   );

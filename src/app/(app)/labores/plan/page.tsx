@@ -16,8 +16,8 @@ export default async function Planificar({ searchParams }: { searchParams: Promi
     <>
       <Encabezado titulo="Planificar semana" subtitulo="Anota lo que se va a hacer, en lugar del cuaderno. Después lo registras con un toque." volver={{ href: `/labores?semana=${semana}`, texto: "Labores" }} />
       <section className="tarjeta max-w-2xl p-5">
-        {op.cuadrillas.length === 0 && <div className="mb-4"><Aviso>Todavía no hay cuadrillas. Puedes planificar igual y elegir la cuadrilla después, o crearlas en “Cuadrillas y labores”.</Aviso></div>}
-        <FormPlan semana={semana} cuarteles={op.cuarteles} labores={op.labores} cuadrillas={op.cuadrillas} />
+        {op.cuadrillas.length === 0 && <div className="mb-4"><Aviso>Todavía no hay cuadrillas. Puedes planificar igual y elegir la cuadrilla después, o crearlas en “Cuadrillas, trabajadores y labores”.</Aviso></div>}
+        <FormPlan semana={semana} cuarteles={op.cuarteles} labores={op.labores} cuadrillas={op.cuadrillas} trabajadores={op.trabajadores} />
       </section>
     </>
   );

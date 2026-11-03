@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Agrícola BAS", statusBarStyle: "default" },
   icons: {
-    icon: [{ url: "/icono-192.png", sizes: "192x192", type: "image/png" }],
-    apple: [{ url: "/icono-apple.png", sizes: "180x180" }],
+    icon: [{ url: "/favicon-v2.png", sizes: "64x64", type: "image/png" }, { url: "/icono-192-v2.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icono-apple-v2.png", sizes: "180x180" }],
   },
 };
 

@@ -5,9 +5,9 @@ import { BotonEnviar } from "@/components/BotonEnviar";
 import { ResultadoFormulario } from "@/components/Aviso";
 
 type Op = { id: string; texto: string };
-export type Inicial = { plan?: string; cuartel?: string; labor?: string; cuadrilla?: string; personas?: number };
+export type Inicial = { plan?: string; cuartel?: string; labor?: string; cuadrilla?: string; fiscalizador?: string; personas?: number };
 
-export function FormRegistro({ hoy, cuarteles, labores, cuadrillas, conMonto, inicial }: { hoy: string; cuarteles: Op[]; labores: Op[]; cuadrillas: Op[]; conMonto: boolean; inicial: Inicial }) {
+export function FormRegistro({ hoy, cuarteles, labores, cuadrillas, trabajadores, conMonto, inicial }: { hoy: string; cuarteles: Op[]; labores: Op[]; cuadrillas: Op[]; trabajadores: Op[]; conMonto: boolean; inicial: Inicial }) {
   const [estado, enviar] = useActionState(registrarLabor, null);
   const [personas, setPersonas] = useState(inicial.personas ? String(inicial.personas) : "");
   const [dias, setDias] = useState("1");
@@ -42,6 +42,13 @@ export function FormRegistro({ hoy, cuarteles, labores, cuadrillas, conMonto, in
           <select id="cuadrilla" name="cuadrilla" defaultValue={inicial.cuadrilla ?? ""} className="entrada">
             <option value="">Personal propio / sin cuadrilla</option>
             {cuadrillas.map((c) => <option key={c.id} value={c.id}>{c.texto}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="fiscalizador" className="etiqueta-campo">Quién fiscalizó</label>
+          <select id="fiscalizador" name="fiscalizador" defaultValue={inicial.fiscalizador ?? ""} className="entrada">
+            <option value="">Nadie / sin definir</option>
+            {trabajadores.map((t) => <option key={t.id} value={t.id}>{t.texto}</option>)}
           </select>
         </div>
         <div>

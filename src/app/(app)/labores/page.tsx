@@ -22,8 +22,8 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
   const dias = Array.from({ length: 7 }, (_, i) => sumaDias(semana, i));
 
   const [{ data: plan }, { data: regs }, op] = await Promise.all([
-    supabase.from("labor_plan").select("id, cuartel_id, labor_tipo_id, cuadrilla_id, personas_previstas, observacion, estado").eq("semana", semana).order("creado_en"),
-    supabase.from("labor_registro").select("id, fecha, cuartel_id, labor_tipo_id, cuadrilla_id, personas, jornadas, modalidad, observacion").gte("fecha", semana).lte("fecha", fin).order("fecha").order("creado_en"),
+    supabase.from("labor_plan").select("id, cuartel_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas_previstas, observacion, estado").eq("semana", semana).order("creado_en"),
+    supabase.from("labor_registro").select("id, fecha, cuartel_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas, modalidad, observacion").gte("fecha", semana).lte("fecha", fin).order("fecha").order("creado_en"),
     cargarOpciones(supabase),
   ]);
   const ids = (regs ?? []).map((r: any) => r.id);
@@ -38,7 +38,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
       {edita && <Link href="/labores/registrar" className="boton"><Icono nombre="mas" className="size-4" />Registrar trabajo</Link>}
       {edita && <Link href={`/labores/plan?semana=${semana}`} className="boton-secundario">Planificar</Link>}
       <Link href="/labores/resumen" className="boton-secundario"><Icono nombre="finanzas" className="size-4" />Resumen</Link>
-      <Link href="/labores/catalogos" className="boton-secundario">Cuadrillas y labores</Link>
+      <Link href="/labores/catalogos" className="boton-secundario">Cuadrillas, trabajadores y labores</Link>
     </>
   );
 
@@ -64,7 +64,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
                 <p className={`font-medium ${x.estado === "cancelada" ? "line-through" : ""}`}>{op.nombres.labor.get(x.labor_tipo_id)} · {x.cuartel_id ? op.nombres.cuartel.get(x.cuartel_id) : "General del campo"}</p>
                 <p className="text-sm text-tinta-suave">
                   {x.cuadrilla_id ? op.nombres.cuadrilla.get(x.cuadrilla_id) : "Cuadrilla por definir"}
-                  {x.personas_previstas ? ` · ${x.personas_previstas} personas` : ""}{x.observacion ? ` · ${x.observacion}` : ""}
+                  {x.personas_previstas ? ` · ${x.personas_previstas} personas` : ""}{x.fiscalizador_id ? ` · fiscaliza ${op.nombres.trabajador.get(x.fiscalizador_id)}` : ""}{x.observacion ? ` · ${x.observacion}` : ""}
                 </p>
               </div>
               <span className={`pastilla ${x.estado === "hecha" ? "bg-verde-claro text-verde-oscuro" : x.estado === "cancelada" ? "bg-alerta-claro text-alerta" : "bg-ambar-claro text-ambar"}`}>{x.estado === "hecha" ? "Hecha" : x.estado === "cancelada" ? "Cancelada" : "Pendiente"}</span>
@@ -101,7 +101,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
                   <div className="min-w-56 flex-1">
                     <p className="font-medium">{op.nombres.labor.get(r.labor_tipo_id)} · {r.cuartel_id ? op.nombres.cuartel.get(r.cuartel_id) : "General del campo"}</p>
                     <p className="text-sm text-tinta-suave">
-                      {r.cuadrilla_id ? op.nombres.cuadrilla.get(r.cuadrilla_id) : "Personal propio"} · {r.personas} personas · {num(Number(r.jornadas), 1)} jornadas · {r.modalidad === "trato" ? "trato" : "por día"}
+                      {r.cuadrilla_id ? op.nombres.cuadrilla.get(r.cuadrilla_id) : "Personal propio"} · {r.personas} personas · {num(Number(r.jornadas), 1)} jornadas · {r.modalidad === "trato" ? "trato" : "por día"}{r.fiscalizador_id ? ` · fiscalizó ${op.nombres.trabajador.get(r.fiscalizador_id)}` : ""}
                       {r.observacion ? ` · ${r.observacion}` : ""}
                     </p>
                   </div>

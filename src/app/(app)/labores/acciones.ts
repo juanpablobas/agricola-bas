@@ -24,7 +24,7 @@ export async function crearPlan(_: EstadoFormulario, form: FormData): Promise<Es
   const semana = lunesDe(semanaIn);
 
   const { error } = await supabase.from("labor_plan").insert({
-    semana, labor_tipo_id: labor, cuartel_id: idOpc(form.get("cuartel")), cuadrilla_id: idOpc(form.get("cuadrilla")),
+    semana, labor_tipo_id: labor, cuartel_id: idOpc(form.get("cuartel")), cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
     personas_previstas: personas, observacion: leerTexto(form.get("observacion")), creado_por: user.id,
   });
   if (error) return { error: "No se pudo guardar el plan." };
@@ -73,7 +73,7 @@ export async function registrarLabor(_: EstadoFormulario, form: FormData): Promi
   const { data: reg, error } = await supabase
     .from("labor_registro")
     .insert({
-      fecha, cuartel_id: idOpc(form.get("cuartel")), labor_tipo_id: labor, cuadrilla_id: idOpc(form.get("cuadrilla")),
+      fecha, cuartel_id: idOpc(form.get("cuartel")), labor_tipo_id: labor, cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
       personas, jornadas, modalidad, observacion: leerTexto(form.get("observacion")), plan_id: planId, creado_por: user.id,
     })
     .select("id")
@@ -124,12 +124,22 @@ export async function crearLabor(_: EstadoFormulario, form: FormData): Promise<E
   return { ok: "Labor agregada." };
 }
 
+export async function crearTrabajador(_: EstadoFormulario, form: FormData): Promise<EstadoFormulario> {
+  const { supabase } = await exigirRol(...ROLES);
+  const nombre = leerTexto(form.get("nombre"));
+  if (!nombre) return { error: "Escribe el nombre del trabajador." };
+  const { error } = await supabase.from("trabajador").insert({ nombre, vive_en_campo: form.get("vive") === "on" });
+  if (error) return { error: error.code === "23505" ? "Ya existe un trabajador con ese nombre." : "No se pudo guardar." };
+  revalidatePath("/labores", "layout");
+  return { ok: "Trabajador agregado." };
+}
+
 export async function alternarActivo(form: FormData) {
   const { supabase } = await exigirRol(...ROLES);
   const tabla = String(form.get("tabla") ?? "");
   const id = idOpc(form.get("id"));
   const activo = form.get("activo") === "true";
-  if (id && (tabla === "cuadrilla" || tabla === "labor_tipo")) await supabase.from(tabla).update({ activo: !activo }).eq("id", id);
+  if (id && (tabla === "cuadrilla" || tabla === "labor_tipo" || tabla === "trabajador")) await supabase.from(tabla).update({ activo: !activo }).eq("id", id);
   revalidatePath("/labores", "layout");
   redirect("/labores/catalogos");
 }

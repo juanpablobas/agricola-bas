@@ -1,16 +1,17 @@
 import { exigirRol, puede } from "@/lib/auth";
 import { Encabezado } from "@/components/Encabezado";
-import { FormCuadrilla, FormLabor } from "../FormCatalogo";
+import { FormCuadrilla, FormLabor, FormTrabajador } from "../FormCatalogo";
 import { alternarActivo } from "../acciones";
 
-export const metadata = { title: "Cuadrillas y labores" };
+export const metadata = { title: "Cuadrillas, trabajadores y labores" };
 
 export default async function Catalogos() {
   const { supabase, perfil } = await exigirRol("administrador", "enc_administrativo", "enc_agricola", "propietario");
   const edita = puede(perfil.rol, "administrador", "enc_administrativo", "enc_agricola");
-  const [{ data: cuadrillas }, { data: labores }] = await Promise.all([
+  const [{ data: cuadrillas }, { data: labores }, { data: trabajadores }] = await Promise.all([
     supabase.from("cuadrilla").select("id, nombre, jefe, tipo, telefono, activo").order("nombre"),
     supabase.from("labor_tipo").select("id, nombre, activo").order("nombre"),
+    supabase.from("trabajador").select("id, nombre, vive_en_campo, activo").order("nombre"),
   ]);
   const alterna = (tabla: string, x: any) => edita && (
     <form action={alternarActivo}>
@@ -20,7 +21,7 @@ export default async function Catalogos() {
   );
   return (
     <>
-      <Encabezado titulo="Cuadrillas y labores" subtitulo="Las listas que aparecen al planificar y registrar." volver={{ href: "/labores", texto: "Labores" }} />
+      <Encabezado titulo="Cuadrillas, trabajadores y labores" subtitulo="Las listas que aparecen al planificar y registrar." volver={{ href: "/labores", texto: "Labores" }} />
       <section className="tarjeta mb-4">
         <h2 className="p-4 pb-2 font-semibold">Cuadrillas</h2>
         {(cuadrillas ?? []).length === 0 && <p className="px-4 pb-3 text-sm text-tinta-suave">Todavía no hay cuadrillas. Agrega la primera abajo.</p>}
@@ -34,6 +35,18 @@ export default async function Catalogos() {
           </div>
         ))}
         {edita && <div className="border-t border-linea p-4"><FormCuadrilla /></div>}
+      </section>
+      <section className="tarjeta mb-4">
+        <h2 className="p-4 pb-1 font-semibold">Trabajadores del campo</h2>
+        <p className="px-4 pb-2 text-sm text-tinta-suave">Ellos son los que fiscalizan que el contratista haga bien cada labor.</p>
+        {(trabajadores ?? []).length === 0 && <p className="px-4 pb-3 text-sm text-tinta-suave">Todavía no hay trabajadores. Agrega el primero abajo.</p>}
+        {(trabajadores ?? []).map((t: any) => (
+          <div key={t.id} className={`flex flex-wrap items-center justify-between gap-2 border-t border-linea px-4 py-2.5 ${t.activo ? "" : "text-tinta-suave"}`}>
+            <p className="font-medium">{t.nombre}{t.vive_en_campo && <span className="pastilla ml-2 bg-verde-claro text-verde-oscuro">vive en el campo</span>}{!t.activo && <span className="pastilla ml-2 bg-linea/60">inactivo</span>}</p>
+            {alterna("trabajador", t)}
+          </div>
+        ))}
+        {edita && <div className="border-t border-linea p-4"><FormTrabajador /></div>}
       </section>
       <section className="tarjeta">
         <h2 className="p-4 pb-2 font-semibold">Labores</h2>

@@ -9,7 +9,7 @@ import { cargarOpciones } from "../lib";
 
 export const metadata = { title: "Resumen de labores" };
 
-const AGRUPA = { labor: "Por labor", cuartel: "Por cuartel", cuadrilla: "Por cuadrilla" } as const;
+const AGRUPA = { labor: "Por labor", cuartel: "Por cuartel", cuadrilla: "Por cuadrilla", fiscalizador: "Por quien fiscaliza" } as const;
 
 export default async function Resumen({ searchParams }: { searchParams: Promise<{ desde?: string; hasta?: string; por?: string }> }) {
   const p = await searchParams;
@@ -19,11 +19,11 @@ export default async function Resumen({ searchParams }: { searchParams: Promise<
   const hoy = hoyChile();
   const desde = esFecha(p.desde) ? p.desde : hoy.slice(0, 8) + "01";
   const hasta = esFecha(p.hasta) ? p.hasta : hoy;
-  const por = (p.por === "cuartel" || p.por === "cuadrilla" ? p.por : "labor") as keyof typeof AGRUPA;
+  const por = (p.por === "cuartel" || p.por === "cuadrilla" || p.por === "fiscalizador" ? p.por : "labor") as keyof typeof AGRUPA;
 
   const op = await cargarOpciones(supabase);
   const regs = await leerTodo<any>((d, h) =>
-    supabase.from("labor_registro").select("id, fecha, cuartel_id, labor_tipo_id, cuadrilla_id, personas, jornadas").gte("fecha", desde).lte("fecha", hasta).order("id").range(d, h));
+    supabase.from("labor_registro").select("id, fecha, cuartel_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas").gte("fecha", desde).lte("fecha", hasta).order("id").range(d, h));
   const montoDe = new Map<string, number>();
   if (veMonto && regs.length) {
     for (let i = 0; i < regs.length; i += 200) {
@@ -34,8 +34,8 @@ export default async function Resumen({ searchParams }: { searchParams: Promise<
 
   const grupos = new Map<string, { nombre: string; reg: number; jornadas: number; monto: number; conMonto: number; jornadasConMonto: number }>();
   for (const r of regs) {
-    const id = por === "labor" ? r.labor_tipo_id : por === "cuartel" ? r.cuartel_id ?? "general" : r.cuadrilla_id ?? "propio";
-    const nombre = por === "labor" ? op.nombres.labor.get(id) : por === "cuartel" ? (id === "general" ? "General del campo" : op.nombres.cuartel.get(id)) : id === "propio" ? "Personal propio" : op.nombres.cuadrilla.get(id);
+    const id = por === "labor" ? r.labor_tipo_id : por === "cuartel" ? r.cuartel_id ?? "general" : por === "fiscalizador" ? r.fiscalizador_id ?? "nadie" : r.cuadrilla_id ?? "propio";
+    const nombre = por === "fiscalizador" ? (id === "nadie" ? "Sin fiscalizador" : op.nombres.trabajador.get(id)) : por === "labor" ? op.nombres.labor.get(id) : por === "cuartel" ? (id === "general" ? "General del campo" : op.nombres.cuartel.get(id)) : id === "propio" ? "Personal propio" : op.nombres.cuadrilla.get(id);
     const g = grupos.get(id) ?? { nombre: nombre ?? "—", reg: 0, jornadas: 0, monto: 0, conMonto: 0, jornadasConMonto: 0 };
     g.reg++;
     g.jornadas += Number(r.jornadas);

@@ -6,7 +6,7 @@ import { ResultadoFormulario } from "@/components/Aviso";
 
 type Op = { id: string; texto: string };
 
-export function FormPlan({ semana, cuarteles, labores, cuadrillas }: { semana: string; cuarteles: Op[]; labores: Op[]; cuadrillas: Op[] }) {
+export function FormPlan({ semana, cuarteles, labores, cuadrillas, trabajadores }: { semana: string; cuarteles: Op[]; labores: Op[]; cuadrillas: Op[]; trabajadores: Op[] }) {
   const [estado, enviar] = useActionState(crearPlan, null);
   return (
     <form action={enviar} className="flex flex-col gap-4">
@@ -34,6 +34,13 @@ export function FormPlan({ semana, cuarteles, labores, cuadrillas }: { semana: s
           <select id="cuadrilla" name="cuadrilla" defaultValue="" className="entrada">
             <option value="">Por definir</option>
             {cuadrillas.map((c) => <option key={c.id} value={c.id}>{c.texto}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="fiscalizador" className="etiqueta-campo">Quién fiscaliza (trabajador del campo)</label>
+          <select id="fiscalizador" name="fiscalizador" defaultValue="" className="entrada">
+            <option value="">Por definir</option>
+            {trabajadores.map((t) => <option key={t.id} value={t.id}>{t.texto}</option>)}
           </select>
         </div>
         <div>
