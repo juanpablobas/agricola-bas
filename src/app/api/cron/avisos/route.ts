@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     resumen.paraHoy = await enviarAvisos(admin, gestores, { title: "Aplicaciones para hoy", body: `Hoy ${paraHoy === 1 ? "toca 1 aplicación que habías postergado" : `tocan ${paraHoy} aplicaciones que habías postergado`}.`, url: "/programas" });
   }
   if (diaDelMes === 1 && esteMes > 0) {
-    resumen.mes = await enviarAvisos(admin, gestores, { title: "Aplicaciones del mes", body: `Este mes ${esteMes === 1 ? "toca 1 aplicación" : `tocan ${esteMes} aplicaciones`} del programa. Revisa qué comprar.`, url: "/programas/compra" });
+    resumen.mes = await enviarAvisos(admin, gestores, { title: "Aplicaciones del mes", body: `Este mes ${esteMes === 1 ? "toca 1 aplicación" : `tocan ${esteMes} aplicaciones`} del programa. Revisa el pedido de productos.`, url: "/programas/pedido" });
   }
 
   // 2) Clima: helada, lluvia o viento fuerte hoy o mañana

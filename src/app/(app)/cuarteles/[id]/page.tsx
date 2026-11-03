@@ -8,6 +8,7 @@ import { SubirArchivo } from "@/components/SubirArchivo";
 import { BotonEnviar } from "@/components/BotonEnviar";
 import { cambiarActivo, registrarArchivo, borrarArchivo, agregarPolinizante, quitarPolinizante } from "../acciones";
 import { cargarCuartel } from "./cargar";
+import { HistoriaTemporada } from "./Historia";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -330,12 +331,7 @@ export default async function FichaCuartel({
         )}
       </section>
 
-      <section className="mt-5 rounded-[var(--radius-tarjeta)] border border-dashed border-linea p-5">
-        <h2 className="font-semibold">Historia agrícola y económica</h2>
-        <p className="mt-1 text-sm text-tinta-suave">
-          Labores, aplicaciones, fertilización, cosechas, costos por hectárea, costo por kilo y margen de este cuartel se irán sumando aquí desde las etapas 3 y 4.
-        </p>
-      </section>
+      <HistoriaTemporada supabase={supabase} rol={perfil.rol} cuartelId={id} variedadId={c.variedad_id ?? null} superficie={Number(c.superficie_ha)} />
 
       {veAuditoria && (
         <section className="tarjeta mt-5 p-5">

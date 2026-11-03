@@ -72,7 +72,7 @@ export default async function Opciones({ searchParams }: { searchParams: Promise
   return (
     <>
       <Encabezado titulo="Opciones y precios" subtitulo="Las alternativas que da el asesor para cada producto. Anota el precio de cada una y usa la más conveniente." volver={{ href: "/programas", texto: "Programas" }} />
-      {q.ok === "usada" && <div className="mb-3"><Aviso tipo="ok">Listo: ese producto ahora es el principal en {q.n} {q.n === "1" ? "aplicación" : "aplicaciones"}. “Qué comprar” ya lo toma en cuenta.</Aviso></div>}
+      {q.ok === "usada" && <div className="mb-3"><Aviso tipo="ok">Listo: ese producto ahora es el principal en {q.n} {q.n === "1" ? "aplicación" : "aplicaciones"}. El pedido de productos ya lo toma en cuenta.</Aviso></div>}
       {q.ok === "precio" && <div className="mb-3"><Aviso tipo="ok">Precio guardado.</Aviso></div>}
       {q.error && <div className="mb-3"><Aviso tipo="error">No se pudo guardar. Revisa el valor e intenta de nuevo.</Aviso></div>}
       <div className="mb-3">

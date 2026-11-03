@@ -43,7 +43,7 @@ export default async function Programa({ params }: { params: Promise<{ id: strin
         acciones={<Link href={`/programas/aplicar?programa=${id}`} className="boton-secundario">Registrar aplicación</Link>}
       />
       <p className="mb-4 max-w-3xl text-sm text-tinta-suave">
-        Las cantidades de esta pantalla usan el mojamiento del programa. Al calcular qué comprar o registrar una aplicación se usan los litros reales por variedad y mes.
+        Las cantidades de esta pantalla usan el mojamiento del programa. Al calcular el pedido de productos o registrar una aplicación se usan los litros reales por variedad y mes.
         “Fija” es lo que el asesor da por seguro, “Variable” se aplica según la condición del campo y las “Alternativas” son reemplazos del producto principal.
       </p>
 

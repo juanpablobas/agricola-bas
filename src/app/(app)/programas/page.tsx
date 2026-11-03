@@ -9,6 +9,7 @@ import { cargarSeguimiento, type Pendiente } from "@/lib/seguimiento";
 import { fecha } from "@/lib/formato";
 import { enlaceWhatsapp } from "@/lib/whatsapp";
 import { posponerAplicacion, reactivarAplicacion } from "./acciones";
+import { CalendarioProgramas } from "./Calendario";
 
 export const metadata = { title: "Programas" };
 
@@ -19,7 +20,7 @@ export default async function Programas({ searchParams }: { searchParams: Promis
 
   const [{ data: programas }, { data: apps }, { data: pv }, { data: cuarteles }, { data: lineas }] = await Promise.all([
     supabase.from("programa").select("id, nombre, asesor, archivo, temporada(nombre)").eq("activo", true).order("nombre"),
-    supabase.from("programa_aplicacion").select("programa_id, mes").range(0, 999),
+    supabase.from("programa_aplicacion").select("id, programa_id, orden, titulo, mes").range(0, 999),
     supabase.from("programa_variedad").select("programa_id, variedad_id, variedad(nombre)").range(0, 999),
     supabase.from("v_cuartel").select("variedad_id, superficie_ha, activo").eq("activo", true).range(0, 999),
     supabase.from("programa_linea").select("producto_id").range(0, 1999),
@@ -41,7 +42,7 @@ export default async function Programas({ searchParams }: { searchParams: Promis
 
   const botones = (
     <>
-      <Link href="/programas/compra" className="boton"><Icono nombre="inventario" className="size-4" />Qué comprar</Link>
+      <Link href="/programas/pedido" className="boton"><Icono nombre="inventario" className="size-4" />Pedido de productos</Link>
       {aplica && <Link href="/programas/aplicar" className="boton-secundario"><Icono nombre="ok" className="size-4" />Registrar aplicación</Link>}
       <Link href="/programas/opciones" className="boton-secundario"><Icono nombre="editar" className="size-4" />Opciones y precios</Link>
       <Link href="/programas/mojamiento" className="boton-secundario"><Icono nombre="riego" className="size-4" />Mojamiento</Link>
@@ -54,7 +55,7 @@ export default async function Programas({ searchParams }: { searchParams: Promis
       <Encabezado titulo="Programas" subtitulo="Programas fitosanitarios y de nutrición de los asesores, por especie." acciones={botones} />
 
       {q.ok === "postergada" && <div className="mb-3"><Aviso tipo="ok">Aplicación postergada. Volverá a aparecer como atrasada si pasa la nueva fecha sin registrarla.</Aviso></div>}
-      {q.ok === "omitida" && <div className="mb-3"><Aviso tipo="ok">Aplicación marcada como “no se hará”. Ya no cuenta en “Qué comprar”.</Aviso></div>}
+      {q.ok === "omitida" && <div className="mb-3"><Aviso tipo="ok">Aplicación marcada como “no se hará”. Ya no cuenta en el pedido de productos.</Aviso></div>}
       {q.ok === "reactivada" && <div className="mb-3"><Aviso tipo="ok">La aplicación volvió a pendiente.</Aviso></div>}
       {q.error === "fecha" && <div className="mb-3"><Aviso tipo="error">Indica una nueva fecha que sea hoy o una futura.</Aviso></div>}
       {q.error === "1" && <div className="mb-3"><Aviso tipo="error">No se pudo guardar. Intenta de nuevo.</Aviso></div>}
@@ -73,7 +74,7 @@ export default async function Programas({ searchParams }: { searchParams: Promis
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className={`pastilla ${etiqueta.c}`}>{etiqueta.t}</span>
                   <span className="font-medium">{x.orden}. {x.titulo}</span>
-                  <span className="text-sm capitalize text-tinta-suave">{x.mes ? NOMBRE_MES[x.mes] : ""} · {x.programa}</span>
+                  <span className="inline-block text-sm text-tinta-suave first-letter:uppercase">{x.mes ? NOMBRE_MES[x.mes] : ""} · {x.programa}</span>
                 </div>
                 <p className="mt-1 text-sm text-tinta-suave">Falta en: {g.map((v) => v.variedad).join(", ")}{x.motivo ? ` · se postergó por ${x.motivo.toLowerCase()}` : ""}</p>
                 {puedeGestionar && (
@@ -109,6 +110,16 @@ export default async function Programas({ searchParams }: { searchParams: Promis
             );
           })}
         </section>
+      )}
+
+      {(programas ?? []).length > 0 && (
+        <CalendarioProgramas
+          programas={(programas ?? []) as any[]}
+          apps={(apps ?? []) as any[]}
+          pendientes={pendientes}
+          variedadesPorPrograma={new Map([...new Set((pv ?? []).map((v: any) => v.programa_id as string))].map((id) => [id, (pv ?? []).filter((v: any) => v.programa_id === id).length] as [string, number]))}
+          mesActual={Number(hoy.slice(5, 7))}
+        />
       )}
 
       {(programas ?? []).length === 0 && <Aviso>Todavía no hay programas cargados.</Aviso>}
