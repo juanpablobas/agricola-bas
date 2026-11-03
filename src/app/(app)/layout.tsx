@@ -23,6 +23,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
     ...(tiene(...AGRO) ? [{ href: "/cosecha", texto: "Cosecha", icono: "cosecha", grupo: "Día a día" }] : []),
     ...(tiene(...AGRO) ? [{ href: "/inventario", texto: "Inventario", icono: "inventario", grupo: "Recursos" }] : []),
     { href: "/cuarteles", texto: "Cuarteles", icono: "cuarteles", grupo: "Recursos" },
+    ...(tiene(...AGRO) ? [{ href: "/maquinaria", texto: "Maquinaria", icono: "maquinaria", grupo: "Recursos" }] : []),
     ...(tiene("administrador", "enc_administrativo", "propietario") ? [{ href: "/finanzas", texto: "Finanzas", icono: "finanzas", grupo: "Administración" }] : []),
     ...(tiene("administrador") ? [{ href: "/usuarios", texto: "Usuarios", icono: "usuarios", grupo: "Administración" }] : []),
     ...(tiene("administrador", "propietario") ? [{ href: "/actividad", texto: "Actividad", icono: "actividad", grupo: "Administración" }] : []),

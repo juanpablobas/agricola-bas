@@ -34,6 +34,10 @@ export const colorEspecie = (e?: string | null) => (e && COLOR_ESPECIE[e]) || "#
 
 export const TABLAS: Record<string, string> = {
   perfil: "Usuario",
+  maquina: "Máquina",
+  carga_petroleo: "Carga de petróleo",
+  cosecha: "Cosecha",
+  cosecha_balde: "Baldes de cosecha",
   campo: "Datos del campo",
   temporada: "Temporada",
   especie: "Especie",
