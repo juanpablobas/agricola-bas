@@ -3,11 +3,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirRol } from "@/lib/auth";
 import { leerNumero } from "@/lib/formato";
-import { clave, leerTodo } from "@/lib/programas";
+import { clave, leerTodo, opcionesDeTexto } from "@/lib/programas";
 
 type L = { id: string; aplicacion_id: string; orden: number; producto: string; alternativas: string | null; grupo_alt: number | null; relacion: string | null; caracter: string | null };
-
-export const opcionesDeTexto = (t: string | null) => (t ?? "").split(/\s+o\s+|\s*\/\s*|\s*,\s*/i).map((x) => x.trim()).filter(Boolean);
 
 /** Guarda (o borra, si se deja vacío) el precio de referencia de un producto. */
 export async function guardarPrecio(form: FormData) {

@@ -89,3 +89,6 @@ export const normalizarLinea = (l: any): Linea => ({
   dosis_ha: n(l.dosis_ha),
   repeticiones: Number(l.repeticiones ?? 1),
 });
+
+/** Separa las opciones escritas como texto ("Stimplex o SeaBioDuo o BioBKelp") */
+export const opcionesDeTexto = (t: string | null) => (t ?? "").split(/\s+o\s+|\s*\/\s*|\s*,\s*/i).map((x) => x.trim()).filter(Boolean);

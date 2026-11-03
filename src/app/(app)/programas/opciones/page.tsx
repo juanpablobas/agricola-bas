@@ -3,8 +3,8 @@ import { exigirRol, puede } from "@/lib/auth";
 import { clp, fecha, num } from "@/lib/formato";
 import { Encabezado } from "@/components/Encabezado";
 import { Aviso } from "@/components/Aviso";
-import { clave, leerTodo } from "@/lib/programas";
-import { guardarPrecio, opcionesDeTexto, usarOpcion } from "./acciones";
+import { clave, leerTodo, opcionesDeTexto } from "@/lib/programas";
+import { guardarPrecio, usarOpcion } from "./acciones";
 
 export const metadata = { title: "Opciones y precios" };
 
