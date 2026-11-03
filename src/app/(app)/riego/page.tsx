@@ -32,6 +32,7 @@ export default async function Riego({ searchParams }: { searchParams: Promise<{ 
       <Encabezado
         titulo="Riego"
         subtitulo="Equipos y sectores según el plano de sectorización. El volumen por turno se calcula con superficie × precipitación × horas."
+        acciones={puede(perfil.rol, "administrador", "enc_administrativo", "enc_agricola") ? <Link href="/riego/drop-control" className="boton-secundario">Drop Control</Link> : undefined}
       />
       {ok && <div className="mb-4"><Aviso tipo="ok">Equipo de riego actualizado.</Aviso></div>}
 

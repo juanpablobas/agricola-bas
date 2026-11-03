@@ -82,6 +82,10 @@ export async function GET(request: NextRequest) {
       if (!ya) {
         const r = await generarRecomendacion(admin, hoy);
         resumen.recomendacion = r.ok ? "ok" : r.error;
+        if (!r.ok && r.sinCredito) {
+          const admins = ((perfiles ?? []) as any[]).filter((p) => p.rol === "administrador").map((p) => p.id as string);
+          resumen.avisoSinCredito = await enviarAvisos(admin, admins, { title: "La IA se quedó sin crédito", body: "Carga saldo en la consola de Anthropic (Billing) para que vuelva la recomendación diaria.", url: "/clima" });
+        }
       } else resumen.recomendacion = "ya existía";
     } catch (e) {
       resumen.recomendacion = e instanceof Error ? e.message : "error";

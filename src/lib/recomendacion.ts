@@ -56,7 +56,7 @@ Reglas estrictas:
 - Si algo depende de lo que se vea en terreno, dilo ("revisar en terreno").
 - Sin saludos ni cierre. Cada punto empieza con "•".`;
 
-export async function generarRecomendacion(admin: SupabaseClient, hoy: string): Promise<{ ok: boolean; texto?: string; error?: string }> {
+export async function generarRecomendacion(admin: SupabaseClient, hoy: string): Promise<{ ok: boolean; texto?: string; error?: string; sinCredito?: boolean }> {
   const clave = process.env.ANTHROPIC_API_KEY;
   if (!clave) return { ok: false, error: "Falta la clave de la IA (ANTHROPIC_API_KEY) en Vercel." };
   try {
@@ -67,7 +67,14 @@ export async function generarRecomendacion(admin: SupabaseClient, hoy: string): 
       body: JSON.stringify({ model: MODELO, max_tokens: 600, system: INSTRUCCIONES, messages: [{ role: "user", content: contexto }] }),
     });
     const j: any = await r.json().catch(() => ({}));
-    if (!r.ok) return { ok: false, error: `La IA respondió ${r.status}: ${j?.error?.message ?? "sin detalle"}` };
+    if (!r.ok) {
+      const detalle: string = j?.error?.message ?? "sin detalle";
+      if (/credit balance|billing|credit/i.test(detalle) && (r.status === 400 || r.status === 402)) {
+        return { ok: false, sinCredito: true, error: "La cuenta de la IA se quedó sin crédito. Carga saldo en la consola de Anthropic (Billing)." };
+      }
+      if (r.status === 401) return { ok: false, error: "La clave de la IA no es válida. Revisa ANTHROPIC_API_KEY en Vercel." };
+      return { ok: false, error: `La IA respondió ${r.status}: ${detalle}` };
+    }
     const texto = (j.content ?? []).filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n").trim();
     if (!texto) return { ok: false, error: "La IA no devolvió texto." };
     const { error } = await admin.from("recomendacion_diaria").upsert({ fecha: hoy, texto, modelo: MODELO });
