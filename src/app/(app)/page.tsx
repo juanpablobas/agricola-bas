@@ -4,6 +4,7 @@ import { ha, num, pct, fecha } from "@/lib/formato";
 import { colorEspecie, etiquetaEstado } from "@/lib/etiquetas";
 import { Aviso } from "@/components/Aviso";
 import { Icono } from "@/components/Icono";
+import { cargarSeguimiento } from "@/lib/seguimiento";
 
 export const metadata = { title: "Inicio" };
 
@@ -93,6 +94,20 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
     { texto: "sin conteo real de plantas", n: plantados.filter((f) => f.plantas === null).length },
   ].filter((p) => p.n > 0);
 
+  // Aviso de aplicaciones atrasadas o que tocan este mes (solo para quienes ven los programas)
+  let atrasadas = 0;
+  let esteMes = 0;
+  if (["administrador", "enc_administrativo", "enc_agricola", "propietario"].includes(perfil.rol)) {
+    try {
+      const hoyChile = new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
+      const { pendientes } = await cargarSeguimiento(supabase, hoyChile);
+      atrasadas = new Set(pendientes.filter((x) => x.situacion === "atrasada").map((x) => x.app_id)).size;
+      esteMes = new Set(pendientes.filter((x) => x.situacion === "este_mes" || x.situacion === "reprogramada").map((x) => x.app_id)).size;
+    } catch {
+      /* si falla, el inicio se muestra igual */
+    }
+  }
+
   const maxEspecie = Math.max(...porEspecie.map((e) => e.ha), 1);
 
   return (
@@ -110,6 +125,16 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
       {error === "permiso" && (
         <div className="mb-4">
           <Aviso tipo="error">No tienes permiso para entrar a esa sección.</Aviso>
+        </div>
+      )}
+
+      {(atrasadas > 0 || esteMes > 0) && (
+        <div className="mb-4">
+          <Aviso tipo={atrasadas > 0 ? "error" : "info"}>
+            {atrasadas > 0 && <>Hay <strong>{atrasadas}</strong> {atrasadas === 1 ? "aplicación atrasada" : "aplicaciones atrasadas"}. </>}
+            {esteMes > 0 && <>{esteMes} {esteMes === 1 ? "aplicación toca" : "aplicaciones tocan"} este mes o están reprogramadas. </>}
+            <Link href="/programas" className="font-medium underline">Ver aplicaciones por hacer</Link>
+          </Aviso>
         </div>
       )}
 

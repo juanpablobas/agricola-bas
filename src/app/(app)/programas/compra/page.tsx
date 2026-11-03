@@ -3,6 +3,7 @@ import { exigirRol, puede } from "@/lib/auth";
 import { num } from "@/lib/formato";
 import { Encabezado } from "@/components/Encabezado";
 import { Aviso } from "@/components/Aviso";
+import { cargarSeguimiento } from "@/lib/seguimiento";
 import { NOMBRE_MES, MESES_TEMPORADA, clave, dosisPorHa, esPrincipal, leerTodo, mesesEntre, normalizarLinea, type Aplicacion } from "@/lib/programas";
 
 export const metadata = { title: "Qué comprar" };
@@ -27,7 +28,13 @@ export default async function Compra({ searchParams }: { searchParams: Promise<{
     supabase.from("aplicacion_realizada").select("programa_aplicacion_id, variedad_id").range(0, 999),
     supabase.from("variedad").select("id, nombre").range(0, 999),
   ]);
-  const apps = ((appsRaw ?? []) as Aplicacion[]).filter((a) => a.mes && meses.includes(a.mes));
+  const hoyIso = new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
+  const seg = await cargarSeguimiento(supabase, hoyIso);
+  // Lo atrasado y lo reprogramado también hay que tenerlo comprado, aunque caiga fuera del período elegido
+  const extra = new Set(seg.pendientes.filter((x) => x.situacion === "atrasada" || x.situacion === "reprogramada").map((x) => `${x.app_id}|${x.variedad_id}`));
+  const extraApps = new Set([...extra].map((k) => k.split("|")[0]));
+  const apps = ((appsRaw ?? []) as Aplicacion[]).filter((a) => (a.mes && meses.includes(a.mes)) || extraApps.has(a.id));
+  let atrasadasIncluidas = 0;
   const lineas = (await leerTodo<any>((d, h) => supabase.from("programa_linea").select("*").in("aplicacion_id", apps.map((a) => a.id)).order("orden").range(d, h))).map(normalizarLinea);
 
   const haPor = new Map<string, number>();
@@ -48,7 +55,11 @@ export default async function Compra({ searchParams }: { searchParams: Promise<{
     const vars = (pv ?? []).filter((v: any) => v.programa_id === prog.id);
     for (const app of apps.filter((a) => a.programa_id === prog.id)) {
       for (const v of vars) {
-        if (yaHecha.has(`${app.id}|${v.variedad_id}`)) continue;
+        const par = `${app.id}|${v.variedad_id}`;
+        if (yaHecha.has(par) || seg.omitidas.has(par)) continue;
+        const enRango = !!app.mes && meses.includes(app.mes);
+        if (!enRango && !extra.has(par)) continue;
+        if (!enRango) atrasadasIncluidas++;
         const ha = haPor.get(v.variedad_id) ?? 0;
         if (ha <= 0) continue;
         const litros = real.get(`${v.variedad_id}|${app.mes}`) ?? null;
@@ -101,6 +112,7 @@ export default async function Compra({ searchParams }: { searchParams: Promise<{
       </section>
 
       <div className="mb-4 flex flex-col gap-2">
+        {atrasadasIncluidas > 0 && <Aviso>Se incluyeron {atrasadasIncluidas} aplicaciones atrasadas o postergadas (por variedad) que caen fuera de estos meses, porque igual hay que hacerlas. <Link href="/programas" className="font-medium underline">Ver pendientes</Link></Aviso>}
         {sinMojamiento > 0 && (
           <Aviso>
             En {sinMojamiento} combinaciones de variedad y mes todavía no hay mojamiento real, así que se usó el del programa.{" "}

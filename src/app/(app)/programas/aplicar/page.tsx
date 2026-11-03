@@ -4,6 +4,7 @@ import { fecha, num } from "@/lib/formato";
 import { Encabezado } from "@/components/Encabezado";
 import { Aviso } from "@/components/Aviso";
 import { NOMBRE_MES, MESES_TEMPORADA, dosisPorHa, esPrincipal, normalizarLinea, type Aplicacion } from "@/lib/programas";
+import { MES_INICIO_SEGUIMIENTO } from "@/lib/seguimiento";
 import { FormularioAplicacion, type LineaForm } from "./FormularioAplicacion";
 
 export const metadata = { title: "Registrar aplicación" };
@@ -49,18 +50,20 @@ export default async function Aplicar({ searchParams }: { searchParams: Promise<
   if (!variedad) return <Aviso tipo="error">No encontré esa variedad en los programas.</Aviso>;
   const progIds = mia.map((r) => r.programa_id);
 
-  const [{ data: appsRaw }, { data: hechas }, { data: reales }] = await Promise.all([
+  const [{ data: appsRaw }, { data: hechas }, { data: reales }, { data: omit }] = await Promise.all([
     supabase.from("programa_aplicacion").select("id, programa_id, orden, titulo, estado_fenologico, fecha_estimada, mes").in("programa_id", progIds).order("orden"),
     supabase.from("aplicacion_realizada").select("programa_aplicacion_id, fecha").eq("variedad_id", variedadId),
     supabase.from("mojamiento_real").select("mes, litros_ha").eq("variedad_id", variedadId),
+    supabase.from("aplicacion_estado").select("programa_aplicacion_id").eq("variedad_id", variedadId).eq("estado", "omitida"),
   ]);
+  const omitidas = new Set((omit ?? []).map((o: any) => o.programa_aplicacion_id as string));
   const apps = (appsRaw ?? []) as Aplicacion[];
   const hecha = new Map<string, string>((hechas ?? []).map((h: any) => [h.programa_aplicacion_id as string, h.fecha as string]));
 
   // Paso 2: elegir aplicación
   if (!p.a) {
     const idx = (m: number | null) => (m ? MESES_TEMPORADA.indexOf(m) : 99);
-    const sugerida = apps.filter((a) => !hecha.has(a.id) && idx(a.mes) >= MESES_TEMPORADA.indexOf(mesActual)).sort((x, y) => idx(x.mes) - idx(y.mes) || x.orden - y.orden)[0];
+    const sugerida = apps.filter((a) => !hecha.has(a.id) && !omitidas.has(a.id) && idx(a.mes) >= MESES_TEMPORADA.indexOf(Math.max(1, MES_INICIO_SEGUIMIENTO))).sort((x, y) => idx(x.mes) - idx(y.mes) || x.orden - y.orden)[0];
     return (
       <>
         <Encabezado titulo="Registrar aplicación" subtitulo={`Paso 2 de 3 · ${variedad.nombre}: ¿cuál aplicación hiciste?`} volver={{ href: `/programas/aplicar${p.programa ? `?programa=${p.programa}` : ""}`, texto: "Cambiar variedad" }} />

@@ -107,3 +107,39 @@ export async function borrarAplicacion(form: FormData) {
   revalidatePath("/inventario", "layout");
   redirect("/programas/historial?borrada=1");
 }
+
+const MOTIVOS = ["Lluvia", "Viento", "Falta de producto", "Falta de personal", "Otro"];
+
+/** Posterga una aplicación (con nueva fecha) o la da por no realizada, para las variedades indicadas. */
+export async function posponerAplicacion(form: FormData) {
+  const { supabase, user } = await exigirRol("administrador", "enc_administrativo", "enc_agricola");
+  const app = String(form.get("app") ?? "");
+  const variedades = form.getAll("variedad").map(String).filter((x) => UUID.test(x));
+  const estado = String(form.get("estado") ?? "");
+  const motivoIn = String(form.get("motivo") ?? "");
+  const motivo = MOTIVOS.includes(motivoIn) ? motivoIn : null;
+  const nueva = String(form.get("nueva_fecha") ?? "");
+  if (!UUID.test(app) || variedades.length === 0 || !["postergada", "omitida"].includes(estado)) redirect("/programas?error=1");
+  if (estado === "postergada" && !/^\d{4}-\d{2}-\d{2}$/.test(nueva)) redirect("/programas?error=fecha");
+  if (estado === "postergada" && nueva < new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" })) redirect("/programas?error=fecha");
+
+  const filas = variedades.map((v) => ({
+    programa_aplicacion_id: app, variedad_id: v, estado, motivo, nueva_fecha: estado === "postergada" ? nueva : null, creado_por: user.id,
+  }));
+  const { error } = await supabase.from("aplicacion_estado").upsert(filas, { onConflict: "programa_aplicacion_id,variedad_id" });
+  if (error) redirect("/programas?error=1");
+  revalidatePath("/programas", "layout");
+  revalidatePath("/");
+  redirect(`/programas?ok=${estado}`);
+}
+
+/** Vuelve una aplicación postergada u omitida a pendiente. */
+export async function reactivarAplicacion(form: FormData) {
+  const { supabase } = await exigirRol("administrador", "enc_administrativo", "enc_agricola");
+  const app = String(form.get("app") ?? "");
+  const variedades = form.getAll("variedad").map(String).filter((x) => UUID.test(x));
+  if (UUID.test(app) && variedades.length) await supabase.from("aplicacion_estado").delete().eq("programa_aplicacion_id", app).in("variedad_id", variedades);
+  revalidatePath("/programas", "layout");
+  revalidatePath("/");
+  redirect("/programas?ok=reactivada");
+}
