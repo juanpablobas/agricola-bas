@@ -5,12 +5,13 @@ import { Encabezado } from "@/components/Encabezado";
 import { Aviso } from "@/components/Aviso";
 import { alertasDe, diasBuenosParaAplicar, nombreDiaClima, obtenerClima, ubicacionDelCampo, UMBRALES } from "@/lib/clima";
 import { cargarSeguimiento } from "@/lib/seguimiento";
-import { guardarUbicacion } from "./acciones";
+import { hayClaveIA } from "@/lib/recomendacion";
+import { generarRecomendacionHoy, guardarUbicacion } from "./acciones";
 import { BotonUbicacion } from "./BotonUbicacion";
 
 export const metadata = { title: "Clima" };
 
-export default async function Clima({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
+export default async function Clima({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; ia?: string }> }) {
   const q = await searchParams;
   const { supabase, perfil } = await exigirRol("administrador", "enc_administrativo", "enc_agricola", "propietario", "operario");
   const edita = puede(perfil.rol, "administrador", "enc_administrativo", "enc_agricola");
@@ -21,6 +22,12 @@ export default async function Clima({ searchParams }: { searchParams: Promise<{ 
   const clima = ubic ? await obtenerClima(ubic) : null;
   const alertas = clima ? alertasDe(clima.dias, hoy) : [];
   const buenos = clima ? diasBuenosParaAplicar(clima.dias, hoy) : [];
+
+  let reco: { texto: string; modelo: string | null } | null = null;
+  if (verProgramas) {
+    const { data } = await supabase.from("recomendacion_diaria").select("texto, modelo").eq("fecha", hoy).maybeSingle();
+    reco = data as any;
+  }
 
   let porHacer = 0;
   if (verProgramas) {
@@ -35,6 +42,24 @@ export default async function Clima({ searchParams }: { searchParams: Promise<{ 
       <Encabezado titulo="Clima" subtitulo={ubic ? `Pronóstico para ${ubic.origen === "campo" ? "el fundo" : `la zona de ${ubic.nombre}`}.` : "Pronóstico del tiempo para el campo."} />
       {q.ok && <div className="mb-3"><Aviso tipo="ok">Ubicación guardada.</Aviso></div>}
       {q.error && <div className="mb-3"><Aviso tipo="error">Revisa la latitud y la longitud (por ejemplo -34,07 y -70,70).</Aviso></div>}
+
+      {q.ia && <div className="mb-3"><Aviso tipo="error">No se pudo generar la recomendación: {q.ia}</Aviso></div>}
+      {verProgramas && (
+        <section className="tarjeta mb-4 p-4">
+          <h2 className="mb-1 font-semibold">Recomendación del día <span className="pastilla ml-1 bg-verde-claro text-verde-oscuro">IA</span></h2>
+          {reco ? (
+            <p className="whitespace-pre-line text-sm">{reco.texto}</p>
+          ) : !hayClaveIA() ? (
+            <p className="text-sm text-tinta-suave">Todavía no está activada: falta la clave de la IA en Vercel (variable ANTHROPIC_API_KEY).</p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-tinta-suave">Hoy todavía no se ha generado. Se genera sola cada mañana, o puedes pedirla ahora.</p>
+              {edita && <form action={generarRecomendacionHoy}><button className="boton-secundario">Generar ahora</button></form>}
+            </div>
+          )}
+          <p className="mt-2 text-xs text-tinta-suave">Una vez al día, con el pronóstico, tus aplicaciones por hacer y el plan de labores. Es una ayuda: la decisión sobre productos y dosis es del asesor, y siempre hay que mirar el campo.</p>
+        </section>
+      )}
 
       {!clima && <Aviso tipo="error">No se pudo obtener el pronóstico en este momento. Intenta de nuevo en unos minutos.</Aviso>}
 

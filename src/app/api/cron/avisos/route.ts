@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { enviarAvisos } from "@/lib/push";
 import { cargarSeguimiento } from "@/lib/seguimiento";
+import { generarRecomendacion, hayClaveIA } from "@/lib/recomendacion";
 import { alertasDe, obtenerClima, ubicacionDelCampo } from "@/lib/clima";
 
 export const runtime = "nodejs";
@@ -73,6 +74,19 @@ export async function GET(request: NextRequest) {
   } catch (e) {
     resumen.climaError = e instanceof Error ? e.message : "error";
   }
+
+  // Recomendación del día con IA (una sola vez al día; si no hay clave, se omite)
+  if (hayClaveIA()) {
+    try {
+      const { data: ya } = await admin.from("recomendacion_diaria").select("fecha").eq("fecha", hoy).maybeSingle();
+      if (!ya) {
+        const r = await generarRecomendacion(admin, hoy);
+        resumen.recomendacion = r.ok ? "ok" : r.error;
+      } else resumen.recomendacion = "ya existía";
+    } catch (e) {
+      resumen.recomendacion = e instanceof Error ? e.message : "error";
+    }
+  } else resumen.recomendacion = "sin clave de IA";
 
   // 3) Plan de labores: los lunes
   if (esLunes) {

@@ -51,7 +51,7 @@ export default async function Historial({ searchParams }: { searchParams: Promis
                   <div>
                     <p className="font-semibold">{a.titulo ?? "Aplicación"}</p>
                     <p className="text-sm text-tinta-suave">
-                      {fecha(a.fecha)} · {nomVar.get(a.variedad_id) ?? "—"} · {num(Number(a.ha), 2)} ha · {num(Number(a.litros_ha))} L/ha
+                      {fecha(a.fecha)} · {nomVar.get(a.variedad_id) ?? "—"} · {num(Number(a.ha), 2)} ha{a.litros_ha != null ? ` · ${num(Number(a.litros_ha))} L/ha` : ""}
                       {nomQuien.get(a.creado_por) ? ` · por ${nomQuien.get(a.creado_por)}` : ""}
                     </p>
                     {a.observacion && <p className="text-sm text-tinta-suave">{a.observacion}</p>}
