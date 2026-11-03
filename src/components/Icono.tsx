@@ -25,6 +25,7 @@ const RUTAS: Record<string, string> = {
   ok: "M5 12.5l4.5 4.5L19 7.5",
   historia: "M3 12a9 9 0 1 0 3-6.7M3 4v4.5h4.5M12 8v4l3 2",
   clima: "M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 8.5a4.75 4.75 0 0 1 0 9.5zM8 21l1-2M12 21l1-2M16 21l1-2",
+  cosecha: "M4 10h16l-1.5 9.5h-13zM8 10l3-6M16 10l-3-6M9 14v2.5M12 14v2.5M15 14v2.5",
   basura: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13",
 };
 
