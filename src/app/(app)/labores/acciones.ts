@@ -145,6 +145,17 @@ export async function editarTrabajador(form: FormData) {
   redirect("/labores/catalogos?ok=1");
 }
 
+export async function borrarCatalogo(form: FormData) {
+  const { supabase } = await exigirRol(...ROLES);
+  const tabla = String(form.get("tabla") ?? "");
+  const id = idOpc(form.get("id"));
+  if (!id || !["cuadrilla", "labor_tipo", "trabajador"].includes(tabla)) redirect("/labores/catalogos?error=1");
+  const { error } = await supabase.from(tabla).delete().eq("id", id);
+  if (error) redirect(`/labores/catalogos?error=${error.code === "23503" ? "uso" : "1"}`);
+  revalidatePath("/labores", "layout");
+  redirect("/labores/catalogos?ok=1");
+}
+
 export async function alternarActivo(form: FormData) {
   const { supabase } = await exigirRol(...ROLES);
   const tabla = String(form.get("tabla") ?? "");
