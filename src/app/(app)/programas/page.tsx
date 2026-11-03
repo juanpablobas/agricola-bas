@@ -43,6 +43,7 @@ export default async function Programas({ searchParams }: { searchParams: Promis
     <>
       <Link href="/programas/compra" className="boton"><Icono nombre="inventario" className="size-4" />Qué comprar</Link>
       {aplica && <Link href="/programas/aplicar" className="boton-secundario"><Icono nombre="ok" className="size-4" />Registrar aplicación</Link>}
+      <Link href="/programas/opciones" className="boton-secundario"><Icono nombre="editar" className="size-4" />Opciones y precios</Link>
       <Link href="/programas/mojamiento" className="boton-secundario"><Icono nombre="riego" className="size-4" />Mojamiento</Link>
       <Link href="/programas/historial" className="boton-secundario"><Icono nombre="historia" className="size-4" />Historial</Link>
     </>
