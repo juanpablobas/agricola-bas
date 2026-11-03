@@ -45,9 +45,6 @@ export default async function Clima({ searchParams }: { searchParams: Promise<{ 
       {q.error && <div className="mb-3"><Aviso tipo="error">Revisa la latitud y la longitud (por ejemplo -34,07 y -70,70).</Aviso></div>}
 
       {q.ia && <div className="mb-3"><Aviso tipo="error">No se pudo generar la recomendación: {q.ia}</Aviso></div>}
-          <p className="mt-2 text-xs text-tinta-suave">Una vez al día, con el pronóstico, tus aplicaciones por hacer y el plan de labores. Es una ayuda: la decisión sobre productos y dosis es del asesor, y siempre hay que mirar el campo.</p>
-        </section>
-      )}
 
       {!clima && <Aviso tipo="error">No se pudo obtener el pronóstico en este momento. Intenta de nuevo en unos minutos.</Aviso>}
 
@@ -112,6 +109,9 @@ export default async function Clima({ searchParams }: { searchParams: Promise<{ 
               {edita && <form action={generarRecomendacionHoy}><button className="boton-secundario">Generar ahora</button></form>}
             </div>
           )}
+          <p className="mt-2 text-xs text-tinta-suave">Una vez al día, con el pronóstico, tus aplicaciones por hacer y el plan de labores. Es una ayuda: la decisión sobre productos y dosis es del asesor, y siempre hay que mirar el campo.</p>
+        </section>
+      )}
 
       <section className="tarjeta p-4">
         <h2 className="mb-1 font-semibold">Ubicación del campo</h2>
