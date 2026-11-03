@@ -2,7 +2,7 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const RUTAS_PUBLICAS = ["/diagnostico", "/login", "/auth", "/manifest.webmanifest", "/icono", "/favicon"];
+const RUTAS_PUBLICAS = ["/diagnostico", "/login", "/auth", "/manifest.webmanifest", "/icono", "/favicon", "/sw.js", "/api/cron"];
 
 export async function actualizarSesion(request: NextRequest) {
   let response = NextResponse.next({ request });

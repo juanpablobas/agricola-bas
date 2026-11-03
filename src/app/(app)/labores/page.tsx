@@ -13,7 +13,7 @@ export const metadata = { title: "Labores" };
 
 export default async function Labores({ searchParams }: { searchParams: Promise<{ semana?: string }> }) {
   const p = await searchParams;
-  const { supabase, perfil } = await exigirRol("administrador", "enc_administrativo", "enc_agricola", "propietario");
+  const { supabase, perfil } = await exigirRol("administrador", "enc_administrativo", "enc_agricola", "propietario", "operario");
   const edita = puede(perfil.rol, "administrador", "enc_administrativo", "enc_agricola");
   const veMonto = puede(perfil.rol, "administrador", "enc_administrativo", "propietario");
 
@@ -38,8 +38,8 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
     <>
       {edita && <Link href="/labores/registrar" className="boton"><Icono nombre="mas" className="size-4" />Registrar trabajo</Link>}
       {edita && <Link href={`/labores/plan?semana=${semana}`} className="boton-secundario">Planificar</Link>}
-      <Link href="/labores/resumen" className="boton-secundario"><Icono nombre="finanzas" className="size-4" />Resumen</Link>
-      <Link href="/labores/catalogos" className="boton-secundario">Cuadrillas, trabajadores y labores</Link>
+      {perfil.rol !== "operario" && <Link href="/labores/resumen" className="boton-secundario"><Icono nombre="finanzas" className="size-4" />Resumen</Link>}
+      {perfil.rol !== "operario" && <Link href="/labores/catalogos" className="boton-secundario">Cuadrillas, trabajadores y labores</Link>}
     </>
   );
 

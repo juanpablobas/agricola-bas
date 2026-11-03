@@ -139,7 +139,7 @@ export async function editarTrabajador(form: FormData) {
   const id = idOpc(form.get("id"));
   const nombre = leerTexto(form.get("nombre"));
   if (!id || !nombre) redirect("/labores/catalogos?error=1");
-  const { error } = await supabase.from("trabajador").update({ nombre, vive_en_campo: form.get("vive") === "on", telefono: leerTexto(form.get("telefono")) }).eq("id", id);
+  const { error } = await supabase.from("trabajador").update({ nombre, vive_en_campo: form.get("vive") === "on", telefono: leerTexto(form.get("telefono")), perfil_id: idOpc(form.get("perfil")) }).eq("id", id);
   if (error) redirect("/labores/catalogos?error=1");
   revalidatePath("/labores", "layout");
   redirect("/labores/catalogos?ok=1");

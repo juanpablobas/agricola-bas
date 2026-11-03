@@ -10,10 +10,11 @@ export default async function Catalogos({ searchParams }: { searchParams: Promis
   const q = await searchParams;
   const { supabase, perfil } = await exigirRol("administrador", "enc_administrativo", "enc_agricola", "propietario");
   const edita = puede(perfil.rol, "administrador", "enc_administrativo", "enc_agricola");
-  const [{ data: cuadrillas }, { data: labores }, { data: trabajadores }] = await Promise.all([
+  const [{ data: cuadrillas }, { data: labores }, { data: trabajadores }, { data: usuarios }] = await Promise.all([
     supabase.from("cuadrilla").select("id, nombre, jefe, tipo, telefono, activo").order("nombre"),
     supabase.from("labor_tipo").select("id, nombre, activo").order("nombre"),
-    supabase.from("trabajador").select("id, nombre, vive_en_campo, telefono, activo").order("nombre"),
+    supabase.from("trabajador").select("id, nombre, vive_en_campo, telefono, perfil_id, activo").order("nombre"),
+    supabase.from("perfil").select("id, nombre, email").eq("activo", true).order("nombre"),
   ]);
   const alterna = (tabla: string, x: any) => edita && (
     <form action={alternarActivo}>
@@ -62,6 +63,10 @@ export default async function Catalogos({ searchParams }: { searchParams: Promis
                 <input type="hidden" name="id" value={t.id} />
                 <input name="nombre" defaultValue={t.nombre} required className="entrada min-w-40 flex-1" aria-label="Nombre del trabajador" />
                 <input name="telefono" defaultValue={t.telefono ?? ""} inputMode="tel" placeholder="Celular" className="entrada w-36" aria-label="Celular" />
+                <select name="perfil" defaultValue={t.perfil_id ?? ""} className="entrada w-48" aria-label="Usuario de la app (para sus avisos)">
+                  <option value="">Sin usuario de la app</option>
+                  {(usuarios ?? []).map((u: any) => <option key={u.id} value={u.id}>{u.nombre || u.email}</option>)}
+                </select>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="vive" defaultChecked={t.vive_en_campo} className="size-4 accent-verde" />Vive en el campo</label>
                 <button className="boton-secundario">Guardar</button>
               </form>
