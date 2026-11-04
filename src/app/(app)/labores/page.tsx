@@ -24,8 +24,8 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
   const dias = Array.from({ length: 7 }, (_, i) => sumaDias(semana, i));
 
   const [{ data: plan }, { data: regs }, op] = await Promise.all([
-    supabase.from("labor_plan").select("id, cuartel_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas_previstas, observacion, estado").eq("semana", semana).order("creado_en"),
-    supabase.from("labor_registro").select("id, fecha, cuartel_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas, modalidad, observacion").gte("fecha", semana).lte("fecha", fin).order("fecha").order("creado_en"),
+    supabase.from("labor_plan").select("id, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas_previstas, observacion, estado").eq("semana", semana).order("creado_en"),
+    supabase.from("labor_registro").select("id, fecha, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas, modalidad, observacion").gte("fecha", semana).lte("fecha", fin).order("fecha").order("creado_en"),
     cargarOpciones(supabase),
   ]);
   const ids = (regs ?? []).map((r: any) => r.id);
@@ -66,7 +66,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
           (plan ?? []).map((x: any) => (
             <div key={x.id} className={`flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-linea px-4 py-3 ${x.estado !== "pendiente" ? "text-tinta-suave" : ""}`}>
               <div className="min-w-56 flex-1">
-                <p className={`font-medium ${x.estado === "cancelada" ? "line-through" : ""}`}>{op.nombres.labor.get(x.labor_tipo_id)} · {x.cuartel_id ? op.nombres.cuartel.get(x.cuartel_id) : "General del campo"}</p>
+                <p className={`font-medium ${x.estado === "cancelada" ? "line-through" : ""}`}>{op.nombres.labor.get(x.labor_tipo_id)} · {op.donde(x)}</p>
                 <p className="text-sm text-tinta-suave">
                   {x.cuadrilla_id ? op.nombres.cuadrilla.get(x.cuadrilla_id) : "Cuadrilla por definir"}
                   {x.personas_previstas ? ` · ${x.personas_previstas} personas` : ""}{x.fiscalizador_id ? ` · fiscaliza ${op.nombres.trabajador.get(x.fiscalizador_id)}` : ""}{x.observacion ? ` · ${x.observacion}` : ""}
@@ -79,7 +79,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
                   <Link href={`/labores/plan/${x.id}`} className="hover:underline">Editar</Link>
                   {x.estado === "pendiente" && (() => {
                     const labor = op.nombres.labor.get(x.labor_tipo_id) ?? "Labor";
-                    const donde = x.cuartel_id ? `en el cuartel ${op.nombres.cuartel.get(x.cuartel_id)}` : "en el campo";
+                    const donde = x.cuartel_id ? `en el cuartel ${op.nombres.cuartel.get(x.cuartel_id)}` : x.variedad_id ? `en ${op.donde(x)}` : "en el campo";
                     const cuando = `esta semana (del ${corta(semana)} al ${corta(fin)})`;
                     const gato = x.cuadrilla_id ? op.nombres.cuadrilla.get(x.cuadrilla_id) : null;
                     const nota = x.observacion ? ` ${x.observacion}.` : "";
@@ -122,7 +122,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
               {delDia.map((r: any) => (
                 <div key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
                   <div className="min-w-56 flex-1">
-                    <p className="font-medium">{op.nombres.labor.get(r.labor_tipo_id)} · {r.cuartel_id ? op.nombres.cuartel.get(r.cuartel_id) : "General del campo"}</p>
+                    <p className="font-medium">{op.nombres.labor.get(r.labor_tipo_id)} · {op.donde(r)}</p>
                     <p className="text-sm text-tinta-suave">
                       {r.cuadrilla_id ? op.nombres.cuadrilla.get(r.cuadrilla_id) : "Personal propio"} · {r.personas} personas · {num(Number(r.jornadas), 1)} jornadas · {r.modalidad === "trato" ? "trato" : "por día"}{r.fiscalizador_id ? ` · fiscalizó ${op.nombres.trabajador.get(r.fiscalizador_id)}` : ""}
                       {r.observacion ? ` · ${r.observacion}` : ""}

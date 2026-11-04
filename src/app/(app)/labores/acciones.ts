@@ -18,6 +18,12 @@ const entero = (v: FormDataEntryValue | null) => {
   const m = String(v ?? "").match(/\d+([.,]\d+)?/);
   return m ? Number(m[0].replace(",", ".")) : null;
 };
+/** Campo "cuartel" del formulario: un cuartel, "v:<variedad>" para la variedad completa, o vacío (general) */
+const lugar = (v: FormDataEntryValue | null) => {
+  const s = String(v ?? "");
+  if (s.startsWith("v:")) return { cuartel_id: null, variedad_id: idOpc(s.slice(2)) };
+  return { cuartel_id: idOpc(s), variedad_id: null };
+};
 /** Montos en pesos: "$480.000" → 480000 */
 const pesos = (v: FormDataEntryValue | null) => {
   const d = String(v ?? "").replace(/[^\d]/g, "");
@@ -36,7 +42,7 @@ export async function crearPlan(_: EstadoFormulario, form: FormData): Promise<Es
   if (personas !== null && (personas < 1 || personas > 500 || !Number.isInteger(personas))) return { error: "Las personas deben ser un número entero (por ejemplo 8)." };
   const semana = lunesDe(semanaIn);
   const datos = {
-    semana, labor_tipo_id: labor, cuartel_id: idOpc(form.get("cuartel")), cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
+    semana, labor_tipo_id: labor, ...lugar(form.get("cuartel")), cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
     personas_previstas: personas, observacion: leerTexto(form.get("observacion")),
   };
   const { error } = id
@@ -98,7 +104,7 @@ export async function registrarLabor(_: EstadoRegistro, form: FormData): Promise
 
     const jornadas = Math.round(personas * dias * 100) / 100;
     const datos = {
-      fecha, cuartel_id: idOpc(form.get("cuartel")), labor_tipo_id: labor, cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
+      fecha, ...lugar(form.get("cuartel")), labor_tipo_id: labor, cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
       personas, jornadas, modalidad, observacion: leerTexto(form.get("observacion")),
     };
     const { data: reg, error } = id

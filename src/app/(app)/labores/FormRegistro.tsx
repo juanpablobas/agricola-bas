@@ -9,7 +9,7 @@ export type Inicial = { plan?: string; cuartel?: string; labor?: string; cuadril
 
 export type Edicion = { id: string; valores: Record<string, string> };
 
-export function FormRegistro({ hoy, cuarteles, labores, cuadrillas, trabajadores, conMonto, inicial, editar }: { hoy: string; cuarteles: Op[]; labores: Op[]; cuadrillas: Op[]; trabajadores: Op[]; conMonto: boolean; inicial: Inicial; editar?: Edicion }) {
+export function FormRegistro({ hoy, cuarteles, variedades = [], labores, cuadrillas, trabajadores, conMonto, inicial, editar }: { hoy: string; cuarteles: Op[]; variedades?: Op[]; labores: Op[]; cuadrillas: Op[]; trabajadores: Op[]; conMonto: boolean; inicial: Inicial; editar?: Edicion }) {
   const [estado, enviar] = useActionState<EstadoRegistro, FormData>(registrarLabor, null);
   // Si algo falla, el formulario vuelve con lo que se había escrito (no hay que llenarlo de nuevo)
   const v = estado?.valores ?? editar?.valores ?? {};
@@ -45,10 +45,17 @@ export function FormRegistro({ hoy, cuarteles, labores, cuadrillas, trabajadores
           </select>
         </div>
         <div>
-          <label htmlFor="cuartel" className="etiqueta-campo">Cuartel</label>
+          <label htmlFor="cuartel" className="etiqueta-campo">Cuartel o variedad</label>
           <select id="cuartel" name="cuartel" defaultValue={v.cuartel ?? inicial.cuartel ?? ""} className="entrada">
             <option value="">General del campo</option>
-            {cuarteles.map((c) => <option key={c.id} value={c.id}>{c.texto}</option>)}
+            {variedades.length > 0 && (
+              <optgroup label="Variedad completa (todos sus cuarteles)">
+                {variedades.map((x) => <option key={x.id} value={x.id}>{x.texto}</option>)}
+              </optgroup>
+            )}
+            <optgroup label="Un cuartel">
+              {cuarteles.map((c) => <option key={c.id} value={c.id}>{c.texto}</option>)}
+            </optgroup>
           </select>
         </div>
         <div>

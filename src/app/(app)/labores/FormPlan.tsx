@@ -6,7 +6,7 @@ import { ResultadoFormulario } from "@/components/Aviso";
 
 type Op = { id: string; texto: string };
 
-export function FormPlan({ semana, cuarteles, labores, cuadrillas, trabajadores, editar }: { semana: string; cuarteles: Op[]; labores: Op[]; cuadrillas: Op[]; trabajadores: Op[]; editar?: { id: string; valores: Record<string, string> } }) {
+export function FormPlan({ semana, cuarteles, variedades = [], labores, cuadrillas, trabajadores, editar }: { semana: string; cuarteles: Op[]; variedades?: Op[]; labores: Op[]; cuadrillas: Op[]; trabajadores: Op[]; editar?: { id: string; valores: Record<string, string> } }) {
   const [estado, enviar] = useActionState(crearPlan, null);
   const v = editar?.valores ?? {};
   return (
@@ -25,10 +25,17 @@ export function FormPlan({ semana, cuarteles, labores, cuadrillas, trabajadores,
           </select>
         </div>
         <div>
-          <label htmlFor="cuartel" className="etiqueta-campo">Cuartel</label>
+          <label htmlFor="cuartel" className="etiqueta-campo">Cuartel o variedad</label>
           <select id="cuartel" name="cuartel" defaultValue={v.cuartel ?? ""} className="entrada">
             <option value="">General del campo</option>
-            {cuarteles.map((c) => <option key={c.id} value={c.id}>{c.texto}</option>)}
+            {variedades.length > 0 && (
+              <optgroup label="Variedad completa (todos sus cuarteles)">
+                {variedades.map((x) => <option key={x.id} value={x.id}>{x.texto}</option>)}
+              </optgroup>
+            )}
+            <optgroup label="Un cuartel">
+              {cuarteles.map((c) => <option key={c.id} value={c.id}>{c.texto}</option>)}
+            </optgroup>
           </select>
         </div>
         <div>
