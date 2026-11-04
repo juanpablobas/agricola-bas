@@ -21,6 +21,14 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* Sin zoom por doble toque (se siente como app) y la página nunca se corre hacia el lado */
+  touch-action: manipulation;
+}
+
+html,
+body {
+  overflow-x: clip;
+  overscroll-behavior-x: none;
 }
 
 body {
@@ -63,5 +71,45 @@ body {
   }
   .pastilla {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+}
+
+/* Entrada suave de cada pantalla y de las tarjetas, para que la app se sienta viva sin marear */
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.aparecer {
+  animation: aparecer 0.28s ease-out both;
+}
+.aparecer-escalonado > * {
+  animation: aparecer 0.32s ease-out both;
+}
+.aparecer-escalonado > *:nth-child(2) { animation-delay: 40ms; }
+.aparecer-escalonado > *:nth-child(3) { animation-delay: 80ms; }
+.aparecer-escalonado > *:nth-child(4) { animation-delay: 120ms; }
+.aparecer-escalonado > *:nth-child(5) { animation-delay: 160ms; }
+.aparecer-escalonado > *:nth-child(n + 6) { animation-delay: 200ms; }
+
+/* Tarjetas y filas que se pueden tocar: responden al dedo */
+.tocable {
+  transition: transform 0.12s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.tocable:active {
+  transform: scale(0.985);
+}
+@media (hover: hover) {
+  .tocable:hover {
+    box-shadow: 0 6px 20px -12px rgb(28 42 35 / 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aparecer,
+  .aparecer-escalonado > * {
+    animation: none;
+  }
+  .tocable:active {
+    transform: none;
   }
 }

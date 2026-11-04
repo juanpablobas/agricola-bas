@@ -448,7 +448,25 @@ export default async function Pedido({ searchParams }: { searchParams: Promise<{
             <section className="tarjeta mb-5 overflow-hidden">
               <h2 className="p-4 pb-1 text-lg font-semibold">Por especie</h2>
               <p className="px-4 pb-2 text-sm text-tinta-suave">Cuánto de cada producto se va a cada especie.</p>
-              <div className="overflow-x-auto">
+              <ul className="divide-y divide-linea border-t border-linea sm:hidden">
+                {filas.map((f) => (
+                  <li key={`${f.producto_id ?? f.clave}|${f.unidad}`} className="px-4 py-2.5">
+                    <p className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0 font-medium">{f.nombre}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">{cant(f.total)} <span className="text-xs font-normal text-tinta-suave">{f.unidad}</span></span>
+                    </p>
+                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-tinta-suave">
+                      {listaEspecies.filter((e) => f.porEspecie.get(e)).map((e) => (
+                        <span key={e} className="inline-flex items-center gap-1 tabular-nums">
+                          <span className="size-2 rounded-full" style={{ background: colorEspecie(e) }} />
+                          {e} {cant(f.porEspecie.get(e)!)}
+                        </span>
+                      ))}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="tabla">
                   <thead>
                     <tr>

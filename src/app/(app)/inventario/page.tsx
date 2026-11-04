@@ -13,6 +13,16 @@ type Fila = {
 };
 
 const CLASES = ["Pesticida", "Herbicida", "Fertilizante", "Insumos"];
+const COLOR_CLASE: Record<string, string> = { Pesticida: "bg-alerta", Herbicida: "bg-ambar", Fertilizante: "bg-verde", Insumos: "bg-agua" };
+
+function enlace(p: { q?: string; tipo?: string; ver?: string }) {
+  const u = new URLSearchParams();
+  if (p.q) u.set("q", p.q);
+  if (p.tipo) u.set("tipo", p.tipo);
+  if (p.ver) u.set("ver", p.ver);
+  const s = u.toString();
+  return s ? `/inventario?${s}` : "/inventario";
+}
 
 export default async function Inventario({ searchParams }: { searchParams: Promise<{ q?: string; tipo?: string; ver?: string; ok?: string }> }) {
   const p = await searchParams;
@@ -70,24 +80,72 @@ export default async function Inventario({ searchParams }: { searchParams: Promi
         <div className="mb-4"><Aviso tipo="error">{negativos.length} productos tienen stock negativo (salió más de lo que entró): {negativos.slice(0, 5).map((n) => n.nombre).join(", ")}{negativos.length > 5 ? "…" : ""}. Revisa el archivo del administrador.</Aviso></div>
       )}
 
-      <form method="get" className="tarjeta mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]">
-        <div><label htmlFor="q" className="etiqueta-campo">Buscar producto</label><input id="q" name="q" defaultValue={p.q ?? ""} className="entrada" placeholder="Nombre" /></div>
-        <div><label htmlFor="tipo" className="etiqueta-campo">Tipo</label>
-          <select id="tipo" name="tipo" defaultValue={p.tipo ?? ""} className="entrada"><option value="">Todos</option>{CLASES.map((c) => <option key={c}>{c}</option>)}</select></div>
-        <div><label htmlFor="ver" className="etiqueta-campo">Mostrar</label>
-          <select id="ver" name="ver" defaultValue={p.ver ?? ""} className="entrada"><option value="">Solo con stock</option><option value="todos">Todos</option></select></div>
-        <div className="flex items-end gap-2"><Link href="/inventario" className="boton-secundario">Limpiar</Link><button className="boton">Filtrar</button></div>
+      <form method="get" className="tarjeta mb-3 flex flex-wrap items-end gap-3 p-4">
+        <div className="min-w-0 flex-1 basis-56">
+          <label htmlFor="q" className="etiqueta-campo">Buscar producto</label>
+          <input id="q" name="q" type="search" defaultValue={p.q ?? ""} className="entrada" placeholder="Nombre del producto" />
+        </div>
+        {p.tipo && <input type="hidden" name="tipo" value={p.tipo} />}
+        {p.ver && <input type="hidden" name="ver" value={p.ver} />}
+        <button className="boton">Buscar</button>
       </form>
 
-      <section className="tarjeta overflow-x-auto">
+      <nav aria-label="Filtrar por tipo" className="mb-4 flex flex-wrap gap-2">
+        {[{ v: "", t: "Todos" }, ...CLASES.map((c) => ({ v: c, t: c }))].map(({ v, t }) => {
+          const activo = (p.tipo ?? "") === v;
+          const n = (v ? conStock.filter((f) => f.clasificacion === v) : conStock).length;
+          return (
+            <Link
+              key={t}
+              href={enlace({ ...p, tipo: v || undefined })}
+              aria-current={activo ? "true" : undefined}
+              className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition ${activo ? "border-verde bg-verde text-white" : "border-linea bg-white text-tinta hover:border-verde/40"}`}
+            >
+              {t}<span className={`text-xs tabular-nums ${activo ? "text-white/75" : "text-tinta-suave"}`}>{n}</span>
+            </Link>
+          );
+        })}
+        <Link
+          href={enlace({ ...p, ver: p.ver === "todos" ? undefined : "todos" })}
+          className="inline-flex min-h-9 items-center rounded-full px-3 text-sm text-tinta-suave underline-offset-2 hover:underline"
+        >
+          {p.ver === "todos" ? "Ocultar sin stock" : "Ver también sin stock"}
+        </Link>
+      </nav>
+
+      <p className="mb-2 text-xs text-tinta-suave">{num(visibles.length)} {visibles.length === 1 ? "producto" : "productos"}{q ? ` con “${p.q}”` : ""}</p>
+
+      {/* Celular: lista fácil de leer, sin deslizar hacia el lado */}
+      <ul className="tarjeta divide-y divide-linea overflow-hidden sm:hidden">
+        {visibles.length === 0 && <li className="px-4 py-8 text-center text-sm text-tinta-suave">No hay productos con esos filtros.</li>}
+        {visibles.map((f) => (
+          <li key={f.producto_id}>
+            <Link href={`/inventario/${f.producto_id}`} className="flex items-center gap-3 px-4 py-3 active:bg-papel">
+              <span className={`size-2 shrink-0 rounded-full ${COLOR_CLASE[f.clasificacion] ?? "bg-linea"}`} aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{f.nombre}</span>
+                <span className="block truncate text-xs text-tinta-suave">
+                  {f.clasificacion}{f.costo_promedio ? ` · ${clp(f.costo_promedio)} c/u` : ""}{f.ultimo_movimiento ? ` · ${fecha(f.ultimo_movimiento)}` : ""}
+                </span>
+              </span>
+              <span className="shrink-0 text-right leading-tight">
+                <span className={`block font-semibold tabular-nums ${f.stock < -0.0005 ? "text-alerta" : f.stock <= 0.0005 ? "text-tinta-suave" : ""}`}>{num(f.stock, 2)}</span>
+                <span className="block text-xs text-tinta-suave">{f.unidad ?? "sin unidad"}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      <section className="tarjeta hidden overflow-x-auto sm:block">
         <table className="tabla">
           <thead><tr><th>Producto</th><th>Tipo</th><th className="text-right">Ingresó</th><th className="text-right">Salió</th><th className="text-right">Stock</th><th>Unidad</th><th className="text-right">Costo prom.</th><th>Último mov.</th></tr></thead>
           <tbody>
             {visibles.length === 0 && <tr><td colSpan={8} className="py-8 text-center text-tinta-suave">No hay productos con esos filtros.</td></tr>}
             {visibles.map((f) => (
-              <tr key={f.producto_id}>
+              <tr key={f.producto_id} className="transition hover:bg-papel/60">
                 <td className="font-medium"><Link href={`/inventario/${f.producto_id}`} className="hover:text-verde hover:underline">{f.nombre}</Link></td>
-                <td className="text-tinta-suave">{f.clasificacion}</td>
+                <td className="text-tinta-suave"><span className="inline-flex items-center gap-1.5"><span className={`size-2 rounded-full ${COLOR_CLASE[f.clasificacion] ?? "bg-linea"}`} />{f.clasificacion}</span></td>
                 <td className="text-right">{num(f.ingresos, 2)}</td>
                 <td className="text-right">{num(f.salidas, 2)}</td>
                 <td className={`text-right font-semibold ${f.stock < -0.0005 ? "text-alerta" : ""}`}>{num(f.stock, 2)}</td>

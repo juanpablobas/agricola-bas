@@ -154,7 +154,36 @@ export function Tablero({
           <h2 className="font-semibold">{titulo}</h2>
           <p className="text-xs text-tinta-suave">Toca una fila para filtrar todo el tablero</p>
         </div>
-        <table className="tabla">
+        {/* Celular: cada línea con su barra real vs presupuesto, sin deslizar hacia el lado */}
+        <ul className="divide-y divide-linea border-t border-linea sm:hidden">
+          {grupos.map((g) => {
+            const sel = elegido === g.clave;
+            const ancho = g.ppto > 0 ? Math.min(100, (g.real / g.ppto) * 100) : g.real > 0 ? 100 : 0;
+            const barra = clasePct(g.ppto, g.real).replace("text-", "bg-");
+            return (
+              <li key={g.clave}>
+                <button type="button" onClick={() => alElegir(sel ? "" : g.clave)} className={`block w-full px-4 py-3 text-left transition active:bg-papel ${sel ? "bg-verde-claro/70" : ""}`}>
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 truncate text-sm font-medium">{g.nombre}</span>
+                    <span className={`shrink-0 text-sm font-semibold tabular-nums ${clasePct(g.ppto, g.real)}`}>{textoPct(g.ppto, g.real)}</span>
+                  </span>
+                  <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-papel">
+                    <span className={`block h-full rounded-full ${barra}`} style={{ width: `${ancho}%` }} />
+                  </span>
+                  <span className="mt-1 flex justify-between gap-3 text-xs tabular-nums text-tinta-suave">
+                    <span>Real {clp(g.real)}</span>
+                    <span>Ppto {clp(g.ppto)}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+          <li className="flex items-baseline justify-between gap-3 bg-papel/60 px-4 py-3 text-sm font-semibold">
+            <span>Total</span>
+            <span className="text-right tabular-nums">{clp(t.real)} <span className="font-normal text-tinta-suave">de {clp(t.ppto)}</span></span>
+          </li>
+        </ul>
+        <table className="tabla hidden sm:table">
           <thead>
             <tr>
               <th>{primera}</th>

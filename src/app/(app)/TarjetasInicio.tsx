@@ -69,7 +69,7 @@ export function AccesosRapidos({ accesos }: { accesos: { href: string; texto: st
   return (
     <nav aria-label="Accesos rápidos" className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
       {accesos.map((a) => (
-        <Link key={a.href} href={a.href} className="tarjeta flex min-h-14 items-center gap-3 px-3 py-2.5 text-sm font-medium transition hover:border-verde/40 hover:bg-verde-claro/40">
+        <Link key={a.href} href={a.href} className="tarjeta tocable flex min-h-14 items-center gap-3 px-3 py-2.5 text-sm font-medium hover:border-verde/40 hover:bg-verde-claro/40">
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-verde text-white"><Icono nombre={a.icono} className="size-5" /></span>
           <span className="leading-tight">{a.texto}</span>
         </Link>

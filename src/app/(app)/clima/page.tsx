@@ -52,10 +52,10 @@ export default async function Clima({ searchParams }: { searchParams: Promise<{ 
         <>
           {clima.actual && (
             <section className="tarjeta mb-4 grid grid-cols-4 divide-x divide-linea">
-              <div className="p-3 sm:p-4"><p className="text-[11px] uppercase tracking-wide text-tinta-suave">Ahora</p><p className="mt-0.5 text-2xl font-semibold tabular-nums sm:text-3xl">{Math.round(clima.actual.temp)}°</p></div>
-              <div className="p-3 sm:p-4"><p className="text-[11px] uppercase tracking-wide text-tinta-suave">Lluvia</p><p className={`mt-1 text-lg font-semibold tabular-nums ${clima.actual.lluvia > 0 ? "text-agua" : ""}`}>{num(clima.actual.lluvia, 1)}<span className="text-xs font-normal"> mm</span></p></div>
-              <div className="p-3 sm:p-4"><p className="text-[11px] uppercase tracking-wide text-tinta-suave">Viento</p><p className="mt-1 text-lg font-semibold tabular-nums">{num(clima.actual.viento, 0)}<span className="text-xs font-normal"> km/h</span></p></div>
-              <div className="p-3 sm:p-4"><p className="text-[11px] uppercase tracking-wide text-tinta-suave">Humedad</p><p className="mt-1 text-lg font-semibold tabular-nums">{clima.actual.humedad != null ? `${clima.actual.humedad}%` : "—"}</p></div>
+              <div className="min-w-0 p-3 sm:p-4"><p className="truncate text-[11px] uppercase tracking-wide text-tinta-suave">Ahora</p><p className="mt-0.5 text-2xl font-semibold tabular-nums sm:text-3xl">{Math.round(clima.actual.temp)}°</p></div>
+              <div className="min-w-0 p-3 sm:p-4"><p className="truncate text-[11px] uppercase tracking-wide text-tinta-suave">Lluvia</p><p className={`mt-1 text-lg font-semibold tabular-nums ${clima.actual.lluvia > 0 ? "text-agua" : ""}`}>{num(clima.actual.lluvia, 1)}<span className="text-xs font-normal"> mm</span></p></div>
+              <div className="min-w-0 p-3 sm:p-4"><p className="truncate text-[11px] uppercase tracking-wide text-tinta-suave">Viento</p><p className="mt-1 text-lg font-semibold tabular-nums">{num(clima.actual.viento, 0)}<span className="text-xs font-normal"> km/h</span></p></div>
+              <div className="min-w-0 p-3 sm:p-4"><p className="truncate text-[11px] uppercase tracking-wide text-tinta-suave">Humedad</p><p className="mt-1 text-lg font-semibold tabular-nums">{clima.actual.humedad != null ? `${clima.actual.humedad}%` : "—"}</p></div>
             </section>
           )}
 

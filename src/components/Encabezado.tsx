@@ -24,7 +24,12 @@ export function Encabezado({
         <h1 className="text-2xl font-semibold tracking-tight text-tinta">{titulo}</h1>
         {subtitulo && <p className="mt-0.5 text-sm text-tinta-suave">{subtitulo}</p>}
       </div>
-      {acciones && <div className="flex flex-wrap gap-2">{acciones}</div>}
+      {acciones && (
+        // En el celular los botones quedan ordenados en dos columnas, del mismo ancho y fáciles de tocar
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap [&>*]:px-3 sm:[&>*]:px-4 [&>:first-child:nth-last-child(odd)]:col-span-2 [&>*]:text-center [&>*]:leading-tight">
+          {acciones}
+        </div>
+      )}
     </header>
   );
 }

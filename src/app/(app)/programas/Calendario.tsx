@@ -58,9 +58,61 @@ export function CalendarioProgramas({
     <section className="tarjeta mb-5 overflow-hidden">
       <div className="p-4 pb-2">
         <h2 className="font-semibold">Calendario de la temporada</h2>
-        <p className="text-sm text-tinta-suave">Cada número es una aplicación del programa. Toca una fila para ver el programa completo.</p>
+        <p className="text-sm text-tinta-suave">Cada número es una aplicación del programa. Tócalo para ver el programa completo.</p>
       </div>
-      <div className="overflow-x-auto">
+
+      {/* Celular: mes por mes hacia abajo, empezando por el actual */}
+      <div className="sm:hidden">
+        {(() => {
+          const i = Math.max(0, MESES_TEMPORADA.indexOf(mesActual));
+          const siguientes = MESES_TEMPORADA.slice(i);
+          const anteriores = MESES_TEMPORADA.slice(0, i);
+          const Mes = ({ m }: { m: number }) => {
+            const fs = filas.filter((f) => (f.porMes.get(m) ?? []).length > 0);
+            return (
+              <div className={`border-t border-linea px-4 py-3 ${m === mesActual ? "bg-ambar-claro/40" : ""}`}>
+                <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                  <span className="inline-block first-letter:uppercase">{NOMBRE_MES[m]}</span>
+                  {m === mesActual && <span className="pastilla bg-ambar text-white">Este mes</span>}
+                </p>
+                {fs.length === 0 ? (
+                  <p className="text-xs text-tinta-suave">Sin aplicaciones.</p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {fs.map(({ prog, porMes }) => (
+                      <li key={prog.id}>
+                        <Link href={`/programas/${prog.id}`} className="flex items-center gap-3 rounded-lg bg-white px-3 py-2 ring-1 ring-linea active:bg-papel">
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium">{prog.nombre}</span>
+                          <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                            {(porMes.get(m) ?? []).map(({ app, estado }) => (
+                              <span key={app.id} title={ESTILO[estado].texto} className={`grid size-7 place-items-center rounded-full text-xs font-semibold tabular-nums ${ESTILO[estado].clase}`}>{app.orden}</span>
+                            ))}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          };
+          return (
+            <>
+              {siguientes.map((m) => <Mes key={m} m={m} />)}
+              {anteriores.length > 0 && (
+                <details className="group border-t border-linea">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 px-4 text-sm text-tinta-suave">
+                    <span className="transition group-open:rotate-90">›</span> Meses anteriores ({NOMBRE_MES[anteriores[0]]} a {NOMBRE_MES[anteriores.at(-1)!]})
+                  </summary>
+                  {anteriores.map((m) => <Mes key={m} m={m} />)}
+                </details>
+              )}
+            </>
+          );
+        })()}
+      </div>
+
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[860px] border-collapse text-sm">
           <thead>
             <tr>

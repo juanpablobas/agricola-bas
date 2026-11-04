@@ -138,29 +138,34 @@ export function Navegacion({
       )}
 
       {/* Celular: barra inferior con accesos directos */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-linea bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-linea bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         {barraMovil.map((i) => {
           const a = activo(ruta, i.href);
           return (
             <Link
               key={i.href}
               href={i.href}
-              className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
-                a ? "text-verde" : "text-tinta-suave"
+              aria-current={a ? "page" : undefined}
+              className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition active:scale-95 ${
+                a ? "text-verde-oscuro" : "text-tinta-suave"
               }`}
             >
-              <Icono nombre={i.icono} className="size-6" />
+              <span className={`grid h-7 w-12 place-items-center rounded-full transition-colors ${a ? "bg-verde-claro" : ""}`}>
+                <Icono nombre={i.icono} className="size-5.5" />
+              </span>
               {i.texto}
             </Link>
           );
         })}
         <button
           onClick={() => setAbierto(true)}
-          className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
-            !barraMovil.some((i) => activo(ruta, i.href)) ? "text-verde" : "text-tinta-suave"
+          className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition active:scale-95 ${
+            !barraMovil.some((i) => activo(ruta, i.href)) ? "text-verde-oscuro" : "text-tinta-suave"
           }`}
         >
-          <Icono nombre="menu" className="size-6" />
+          <span className={`grid h-7 w-12 place-items-center rounded-full ${!barraMovil.some((i) => activo(ruta, i.href)) ? "bg-verde-claro" : ""}`}>
+            <Icono nombre="menu" className="size-5.5" />
+          </span>
           Más
         </button>
       </nav>

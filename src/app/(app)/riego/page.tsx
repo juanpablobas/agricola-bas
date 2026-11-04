@@ -80,7 +80,36 @@ export default async function Riego({ searchParams }: { searchParams: Promise<{ 
                   </div>
                 );
               })()}
-              <div className="overflow-x-auto">
+              <ul className="divide-y divide-linea sm:hidden">
+                {sectores.map((s: any) => {
+                  const vol = s.superficie_ha && s.precipitacion_mmh && s.horas_turno
+                    ? Number(s.superficie_ha) * Number(s.precipitacion_mmh) * Number(s.horas_turno) * 10
+                    : null;
+                  const datos = [
+                    s.superficie_ha ? ha(s.superficie_ha) : null,
+                    s.precipitacion_mmh ? `${num(s.precipitacion_mmh, 2)} mm/h` : null,
+                    s.horas_turno ? `turno ${num(s.horas_turno, 1)} h` : null,
+                    vol ? `${num(vol, 0)} m³` : null,
+                  ].filter(Boolean);
+                  return (
+                    <li key={s.id} className="px-4 py-3">
+                      <p className="flex items-baseline justify-between gap-3">
+                        <span className="font-semibold">Sector {s.codigo}</span>
+                        {s.caudal_diseno_m3h && <span className="text-xs tabular-nums text-tinta-suave">{num(Number(s.caudal_diseno_m3h), 1)} m³/h{s.presion_bomba_m ? ` · ${num(Number(s.presion_bomba_m), 0)} m` : ""}</span>}
+                      </p>
+                      <p className="mt-0.5 text-sm tabular-nums">{datos.length ? datos.join(" · ") : <span className="text-tinta-suave">Sin datos de riego</span>}</p>
+                      {(cuartelesPorSector.get(s.id) ?? []).length > 0 && (
+                        <p className="mt-1 flex flex-wrap gap-1.5">
+                          {(cuartelesPorSector.get(s.id) ?? []).map((c) => (
+                            <Link key={c.id} href={`/cuarteles/${c.id}`} className="pastilla bg-verde-claro text-verde-oscuro">{c.codigo}</Link>
+                          ))}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="tabla">
                   <thead>
                     <tr>

@@ -199,7 +199,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
       <Atencion items={atencion} />
       <AccesosRapidos accesos={accesos} />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="aparecer-escalonado grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <TarjetaClima temp={clima?.actual?.temp ?? null} dias={clima?.dias ?? []} hoy={hoy} alertas={alertasClima} />
         {seguimiento && <TarjetaAplicaciones atrasadas={atrasadas} esteMes={esteMes} lista={listaApps} />}
         {labores && <TarjetaLabores {...labores} puedePlanificar={gestiona} semana={semana} />}
