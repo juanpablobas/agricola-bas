@@ -21,11 +21,11 @@ export async function cargarOpciones(supabase: SupabaseClient, incluir?: { cuadr
     g.ha += Number(c.superficie_ha ?? 0);
     porVar.set(c.variedad_id, g);
   }
-  const nombreVariedad = new Map<string, string>([...porVar].map(([id, g]) => [id, `${g.variedad} completa (${g.codigos.join(", ")})`]));
+  const nombreVariedad = new Map<string, string>([...porVar].map(([id, g]) => [id, `${g.variedad} completa (${g.ha.toLocaleString("es-CL", { maximumFractionDigits: 1 })} ha)`]));
   const variedades: Op[] = [...porVar]
     .filter(([, g]) => g.codigos.length >= 2)
     .sort((a, b) => (a[1].especie + a[1].variedad).localeCompare(b[1].especie + b[1].variedad, "es"))
-    .map(([id, g]) => ({ id: `v:${id}`, texto: `${g.especie} ${g.variedad} completa · ${g.codigos.join(", ")} · ${g.ha.toLocaleString("es-CL", { maximumFractionDigits: 1 })} ha` }));
+    .map(([id, g]) => ({ id: `v:${id}`, texto: `${g.variedad} · ${g.ha.toLocaleString("es-CL", { maximumFractionDigits: 1 })} ha` }));
   const labores: Op[] = ((la ?? []) as any[]).filter((l) => l.activo || l.id === incluir?.labor).map((l) => ({ id: l.id, texto: l.nombre }));
   const cuadrillas: Op[] = ((cd ?? []) as any[]).filter((c) => c.activo || c.id === incluir?.cuadrilla).map((c) => ({ id: c.id, texto: c.jefe ? `${c.nombre} (${c.jefe})` : c.nombre }));
   const trabajadores: Op[] = ((tr ?? []) as any[]).filter((t) => t.activo || t.id === incluir?.fiscalizador).map((t) => ({ id: t.id, texto: t.nombre }));
