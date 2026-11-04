@@ -4,6 +4,7 @@ import { clp, num } from "@/lib/formato";
 import { corta, esFecha, hoyChile, lunesDe, nombreDia, sumaDias } from "@/lib/semana";
 import { Encabezado } from "@/components/Encabezado";
 import { Aviso } from "@/components/Aviso";
+import { BotonBorrar } from "@/components/BotonBorrar";
 import { Icono } from "@/components/Icono";
 import { borrarPlan, borrarRegistro, cambiarEstadoPlan } from "./acciones";
 import { cargarOpciones } from "./lib";
@@ -47,6 +48,8 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
     <>
       <Encabezado titulo="Labores" subtitulo="Plan de la semana y trabajo realizado por cada cuadrilla." acciones={botones} />
       {p.ok === "registro" && <div className="mb-4"><Aviso tipo="ok">Trabajo guardado. Aparece abajo, en “Trabajo registrado”.</Aviso></div>}
+      {p.ok === "editado" && <div className="mb-4"><Aviso tipo="ok">Cambios guardados.</Aviso></div>}
+      {p.ok === "plan_editado" && <div className="mb-4"><Aviso tipo="ok">Tarea del plan actualizada.</Aviso></div>}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Link href={`/labores?semana=${sumaDias(semana, -7)}`} className="boton-secundario">← Semana anterior</Link>
@@ -73,6 +76,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
               {edita && (
                 <div className="flex items-center gap-3 text-sm">
                   {x.estado === "pendiente" && <Link href={`/labores/registrar?plan=${x.id}`} className="font-medium text-verde hover:underline">Registrar</Link>}
+                  <Link href={`/labores/plan/${x.id}`} className="hover:underline">Editar</Link>
                   {x.estado === "pendiente" && (() => {
                     const labor = op.nombres.labor.get(x.labor_tipo_id) ?? "Labor";
                     const donde = x.cuartel_id ? `en el cuartel ${op.nombres.cuartel.get(x.cuartel_id)}` : "en el campo";
@@ -95,7 +99,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
                     <input type="hidden" name="estado" value={x.estado === "pendiente" ? "cancelada" : "pendiente"} />
                     <button className="hover:underline">{x.estado === "pendiente" ? "Cancelar" : "Reabrir"}</button>
                   </form>
-                  <form action={borrarPlan}><input type="hidden" name="id" value={x.id} /><input type="hidden" name="semana" value={semana} /><button className="text-alerta hover:underline">Borrar</button></form>
+                  <form action={borrarPlan}><input type="hidden" name="id" value={x.id} /><input type="hidden" name="semana" value={semana} /><BotonBorrar pregunta="¿Borrar esta tarea del plan?" className="text-alerta hover:underline" /></form>
                 </div>
               )}
             </div>
@@ -125,7 +129,12 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
                     </p>
                   </div>
                   {veMonto && montoDe.has(r.id) && <span className="text-sm font-medium">{clp(montoDe.get(r.id))}</span>}
-                  {edita && <form action={borrarRegistro}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="semana" value={semana} /><button className="text-sm text-alerta hover:underline">Borrar</button></form>}
+                  {edita && (
+                    <div className="flex items-center gap-4 text-sm">
+                      <Link href={`/labores/registro/${r.id}`} className="font-medium text-verde hover:underline">Editar</Link>
+                      <form action={borrarRegistro}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="semana" value={semana} /><BotonBorrar pregunta="¿Borrar este trabajo registrado? Se borra también su monto." /></form>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

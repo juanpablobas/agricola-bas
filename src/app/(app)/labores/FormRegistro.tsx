@@ -7,12 +7,14 @@ import { Aviso } from "@/components/Aviso";
 type Op = { id: string; texto: string };
 export type Inicial = { plan?: string; cuartel?: string; labor?: string; cuadrilla?: string; fiscalizador?: string; personas?: number };
 
-export function FormRegistro({ hoy, cuarteles, labores, cuadrillas, trabajadores, conMonto, inicial }: { hoy: string; cuarteles: Op[]; labores: Op[]; cuadrillas: Op[]; trabajadores: Op[]; conMonto: boolean; inicial: Inicial }) {
+export type Edicion = { id: string; valores: Record<string, string> };
+
+export function FormRegistro({ hoy, cuarteles, labores, cuadrillas, trabajadores, conMonto, inicial, editar }: { hoy: string; cuarteles: Op[]; labores: Op[]; cuadrillas: Op[]; trabajadores: Op[]; conMonto: boolean; inicial: Inicial; editar?: Edicion }) {
   const [estado, enviar] = useActionState<EstadoRegistro, FormData>(registrarLabor, null);
   // Si algo falla, el formulario vuelve con lo que se había escrito (no hay que llenarlo de nuevo)
-  const v = estado?.valores ?? {};
-  const [personas, setPersonas] = useState(inicial.personas ? String(inicial.personas) : "");
-  const [dias, setDias] = useState("1");
+  const v = estado?.valores ?? editar?.valores ?? {};
+  const [personas, setPersonas] = useState(editar?.valores.personas ?? (inicial.personas ? String(inicial.personas) : ""));
+  const [dias, setDias] = useState(editar?.valores.dias ?? "1");
   const error = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!estado?.error) return;
@@ -29,6 +31,7 @@ export function FormRegistro({ hoy, cuarteles, labores, cuadrillas, trabajadores
     <form action={enviar} noValidate className="flex flex-col gap-4">
       {estado?.error && <div ref={error}><Aviso tipo="error">{estado.error}</Aviso></div>}
       {inicial.plan && <input type="hidden" name="plan" value={inicial.plan} />}
+      {editar && <input type="hidden" name="id" value={editar.id} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="fecha" className="etiqueta-campo">Fecha</label>
@@ -89,7 +92,7 @@ export function FormRegistro({ hoy, cuarteles, labores, cuadrillas, trabajadores
         <label htmlFor="observacion" className="etiqueta-campo">Observación (opcional)</label>
         <input id="observacion" name="observacion" defaultValue={v.observacion ?? ""} className="entrada" placeholder="Ej: faltaron dos personas por lluvia" />
       </div>
-      <div><BotonEnviar className="boton w-full sm:w-auto">Guardar registro</BotonEnviar></div>
+      <div><BotonEnviar className="boton w-full sm:w-auto">{editar ? "Guardar cambios" : "Guardar registro"}</BotonEnviar></div>
     </form>
   );
 }

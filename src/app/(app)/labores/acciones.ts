@@ -13,23 +13,41 @@ const idOpc = (v: FormDataEntryValue | null) => {
 };
 const ROLES = ["administrador", "enc_administrativo", "enc_agricola"] as const;
 
+/** "8", "8 personas", "8,0" → 8 */
+const entero = (v: FormDataEntryValue | null) => {
+  const m = String(v ?? "").match(/\d+([.,]\d+)?/);
+  return m ? Number(m[0].replace(",", ".")) : null;
+};
+/** Montos en pesos: "$480.000" → 480000 */
+const pesos = (v: FormDataEntryValue | null) => {
+  const d = String(v ?? "").replace(/[^\d]/g, "");
+  return d === "" ? null : Number(d);
+};
+
 export async function crearPlan(_: EstadoFormulario, form: FormData): Promise<EstadoFormulario> {
   const { supabase, user } = await exigirRol(...ROLES);
+  const id = idOpc(form.get("id"));
   const semanaIn = String(form.get("semana") ?? "");
   const labor = idOpc(form.get("labor"));
-  const personas = leerNumero(form.get("personas"));
-  if (!esFecha(semanaIn)) return { error: "Indica la semana." };
-  if (!labor) return { error: "Elige la labor." };
-  if (personas !== null && (personas < 1 || personas > 500 || !Number.isInteger(personas))) return { error: "Las personas deben ser un número entero." };
+  const personasTxt = String(form.get("personas") ?? "").trim();
+  const personas = personasTxt === "" ? null : entero(personasTxt);
+  if (!esFecha(semanaIn)) return { error: "Falta indicar la semana." };
+  if (!labor) return { error: "Falta elegir la labor." };
+  if (personas !== null && (personas < 1 || personas > 500 || !Number.isInteger(personas))) return { error: "Las personas deben ser un número entero (por ejemplo 8)." };
   const semana = lunesDe(semanaIn);
-
-  const { error } = await supabase.from("labor_plan").insert({
+  const datos = {
     semana, labor_tipo_id: labor, cuartel_id: idOpc(form.get("cuartel")), cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
-    personas_previstas: personas, observacion: leerTexto(form.get("observacion")), creado_por: user.id,
-  });
-  if (error) return { error: "No se pudo guardar el plan." };
+    personas_previstas: personas, observacion: leerTexto(form.get("observacion")),
+  };
+  const { error } = id
+    ? await supabase.from("labor_plan").update(datos).eq("id", id)
+    : await supabase.from("labor_plan").insert({ ...datos, creado_por: user.id });
+  if (error) {
+    console.error("crearPlan", error);
+    return { error: `No se pudo guardar el plan (${error.message}).` };
+  }
   revalidatePath("/labores", "layout");
-  redirect(`/labores?semana=${semana}`);
+  redirect(`/labores?semana=${semana}${id ? "&ok=plan_editado" : ""}`);
 }
 
 export async function cambiarEstadoPlan(form: FormData) {
@@ -53,11 +71,6 @@ export async function borrarPlan(form: FormData) {
 
 export type EstadoRegistro = { error?: string; ok?: string; valores?: Record<string, string> } | null;
 
-/** "8", "8 personas", "8,0" → 8 */
-const entero = (v: FormDataEntryValue | null) => {
-  const m = String(v ?? "").match(/\d+([.,]\d+)?/);
-  return m ? Number(m[0].replace(",", ".")) : null;
-};
 
 export async function registrarLabor(_: EstadoRegistro, form: FormData): Promise<EstadoRegistro> {
   const valores = Object.fromEntries([...form.entries()].filter(([k]) => !k.startsWith("$")).map(([k, v]) => [k, String(v)]));
@@ -71,8 +84,9 @@ export async function registrarLabor(_: EstadoRegistro, form: FormData): Promise
     const diasTxt = String(form.get("dias") ?? "").trim();
     const dias = diasTxt === "" ? 1 : leerNumero(diasTxt);
     const modalidad = String(form.get("modalidad") ?? "dia");
-    const monto = leerNumero(String(form.get("monto") ?? "").replace(/[$\s]/g, ""));
+    const monto = pesos(form.get("monto"));
     const planId = idOpc(form.get("plan"));
+    const id = idOpc(form.get("id"));
 
     if (!esFecha(fecha)) return fallo("Falta la fecha del trabajo.");
     if (fecha > hoyChile()) return fallo("La fecha no puede ser de un día que todavía no pasa.");
@@ -83,32 +97,36 @@ export async function registrarLabor(_: EstadoRegistro, form: FormData): Promise
     if (monto !== null && (monto < 0 || monto > 1_000_000_000)) return fallo("Revisa el monto pagado.");
 
     const jornadas = Math.round(personas * dias * 100) / 100;
-    const { data: reg, error } = await supabase
-      .from("labor_registro")
-      .insert({
-        fecha, cuartel_id: idOpc(form.get("cuartel")), labor_tipo_id: labor, cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
-        personas, jornadas, modalidad, observacion: leerTexto(form.get("observacion")), plan_id: planId, creado_por: user.id,
-      })
-      .select("id")
-      .single();
+    const datos = {
+      fecha, cuartel_id: idOpc(form.get("cuartel")), labor_tipo_id: labor, cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
+      personas, jornadas, modalidad, observacion: leerTexto(form.get("observacion")),
+    };
+    const { data: reg, error } = id
+      ? await supabase.from("labor_registro").update(datos).eq("id", id).select("id").single()
+      : await supabase.from("labor_registro").insert({ ...datos, plan_id: planId, creado_por: user.id }).select("id").single();
     if (error || !reg) {
       console.error("registrarLabor", error);
       return fallo(`No se pudo guardar el registro${error?.message ? ` (${error.message})` : ""}. Intenta de nuevo; si sigue, avísame con este mensaje.`);
     }
 
-    if (monto !== null && puede(perfil.rol, "administrador", "enc_administrativo")) {
-      const { error: e2 } = await supabase.from("labor_pago").insert({ registro_id: reg.id, monto: Math.round(monto) });
-      if (e2) {
-        console.error("registrarLabor pago", e2);
-        await supabase.from("labor_registro").delete().eq("id", reg.id);
-        return fallo("No se pudo guardar el monto, así que no se guardó nada. Intenta de nuevo.");
+    // Monto (solo quien ve finanzas): al editar, dejarlo vacío lo quita
+    if (puede(perfil.rol, "administrador", "enc_administrativo") && form.has("monto")) {
+      if (monto !== null) {
+        const { error: e2 } = await supabase.from("labor_pago").upsert({ registro_id: reg.id, monto: Math.round(monto) }, { onConflict: "registro_id" });
+        if (e2) {
+          console.error("registrarLabor pago", e2);
+          if (!id) await supabase.from("labor_registro").delete().eq("id", reg.id);
+          return fallo(id ? "Se guardaron los cambios del trabajo, pero no el monto. Intenta de nuevo." : "No se pudo guardar el monto, así que no se guardó nada. Intenta de nuevo.");
+        }
+      } else if (id) {
+        await supabase.from("labor_pago").delete().eq("registro_id", reg.id);
       }
     }
-    if (planId) await supabase.from("labor_plan").update({ estado: "hecha" }).eq("id", planId);
+    if (planId && !id) await supabase.from("labor_plan").update({ estado: "hecha" }).eq("id", planId);
 
     revalidatePath("/labores", "layout");
     revalidatePath("/");
-    destino = `/labores?semana=${lunesDe(fecha)}&ok=registro`;
+    destino = `/labores?semana=${lunesDe(fecha)}&ok=${id ? "editado" : "registro"}`;
   } catch (e) {
     // exigirRol puede redirigir (sesión vencida): esa señal se deja pasar
     if (e && typeof e === "object" && "digest" in e && String((e as { digest?: string }).digest).startsWith("NEXT_REDIRECT")) throw e;
