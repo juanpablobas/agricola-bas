@@ -35,7 +35,7 @@ export function FormRegistro({ hoy, cuarteles, variedades = [], labores, cuadril
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="fecha" className="etiqueta-campo">Fecha</label>
-          <input id="fecha" name="fecha" type="date" defaultValue={v.fecha ?? hoy} max={hoy} className="entrada" />
+          <input id="fecha" name="fecha" type="date" defaultValue={v.fecha ?? hoy} className="entrada" />
         </div>
         <div>
           <label htmlFor="labor" className="etiqueta-campo">Labor</label>

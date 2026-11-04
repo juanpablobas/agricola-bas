@@ -122,7 +122,10 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
               {delDia.map((r: any) => (
                 <div key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
                   <div className="min-w-56 flex-1">
-                    <p className="font-medium">{op.nombres.labor.get(r.labor_tipo_id)} · {op.donde(r)}</p>
+                    <p className="font-medium">
+                      {op.nombres.labor.get(r.labor_tipo_id)} · {op.donde(r)}
+                      {r.fecha > hoy && <span className="pastilla ml-2 bg-agua-claro text-agua">Programado</span>}
+                    </p>
                     <p className="text-sm text-tinta-suave">
                       {r.cuadrilla_id ? op.nombres.cuadrilla.get(r.cuadrilla_id) : "Personal propio"} · {r.personas} personas · {num(Number(r.jornadas), 1)} jornadas · {r.modalidad === "trato" ? "trato" : "por día"}{r.fiscalizador_id ? ` · fiscalizó ${op.nombres.trabajador.get(r.fiscalizador_id)}` : ""}
                       {r.observacion ? ` · ${r.observacion}` : ""}

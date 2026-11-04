@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirRol, puede } from "@/lib/auth";
 import { leerNumero, leerTexto } from "@/lib/formato";
-import { esFecha, hoyChile, lunesDe } from "@/lib/semana";
+import { esFecha, hoyChile, lunesDe, sumaDias } from "@/lib/semana";
 import type { EstadoFormulario } from "@/components/Aviso";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -95,7 +95,8 @@ export async function registrarLabor(_: EstadoRegistro, form: FormData): Promise
     const id = idOpc(form.get("id"));
 
     if (!esFecha(fecha)) return fallo("Falta la fecha del trabajo.");
-    if (fecha > hoyChile()) return fallo("La fecha no puede ser de un día que todavía no pasa.");
+    // Se permiten fechas futuras (trabajos ya acordados con contratistas), hasta un año
+    if (fecha > sumaDias(hoyChile(), 366)) return fallo("Revisa la fecha: está a más de un año.");
     if (!labor) return fallo("Falta elegir la labor (por ejemplo Poda o Raleo).");
     if (personas === null || !Number.isInteger(personas) || personas < 1 || personas > 500) return fallo("Falta indicar cuántas personas trabajaron (un número, por ejemplo 8).");
     if (dias === null || dias <= 0 || dias > 31) return fallo("Revisa los días trabajados: 1 si fue un día completo, 0,5 si fue medio día.");
