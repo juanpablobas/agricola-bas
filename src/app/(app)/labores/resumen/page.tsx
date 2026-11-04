@@ -23,7 +23,7 @@ export default async function Resumen({ searchParams }: { searchParams: Promise<
 
   const op = await cargarOpciones(supabase);
   const regs = await leerTodo<any>((d, h) =>
-    supabase.from("labor_registro").select("id, fecha, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas").gte("fecha", desde).lte("fecha", hasta).order("id").range(d, h));
+    supabase.from("labor_registro").select("id, fecha, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas").eq("estado", "realizado").gte("fecha", desde).lte("fecha", hasta).order("id").range(d, h));
   const montoDe = new Map<string, number>();
   if (veMonto && regs.length) {
     for (let i = 0; i < regs.length; i += 200) {

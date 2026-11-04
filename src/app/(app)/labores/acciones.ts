@@ -104,7 +104,9 @@ export async function registrarLabor(_: EstadoRegistro, form: FormData): Promise
     if (monto !== null && (monto < 0 || monto > 1_000_000_000)) return fallo("Revisa el monto pagado.");
 
     const jornadas = Math.round(personas * dias * 100) / 100;
+    const programado = fecha > hoyChile();
     const datos = {
+      ...(programado ? { estado: "programado" } : id ? {} : { estado: "realizado" }),
       fecha, ...lugar(form.get("cuartel")), labor_tipo_id: labor, cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
       personas, jornadas, modalidad, observacion: leerTexto(form.get("observacion")),
     };
@@ -141,6 +143,17 @@ export async function registrarLabor(_: EstadoRegistro, form: FormData): Promise
     return fallo("Algo falló al guardar. Revisa tu conexión e intenta de nuevo.");
   }
   redirect(destino);
+}
+
+/** Trabajo programado cuya fecha ya llegó: ¿se hizo? */
+export async function confirmarRegistro(form: FormData) {
+  const { supabase } = await exigirRol(...ROLES);
+  const id = idOpc(form.get("id"));
+  const volver = String(form.get("volver") ?? "/labores");
+  if (id) await supabase.from("labor_registro").update({ estado: "realizado" }).eq("id", id);
+  revalidatePath("/labores", "layout");
+  revalidatePath("/");
+  redirect(volver.startsWith("/labores") ? volver : "/labores");
 }
 
 export async function borrarRegistro(form: FormData) {

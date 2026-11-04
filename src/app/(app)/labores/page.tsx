@@ -6,7 +6,7 @@ import { Encabezado } from "@/components/Encabezado";
 import { Aviso } from "@/components/Aviso";
 import { BotonBorrar } from "@/components/BotonBorrar";
 import { Icono } from "@/components/Icono";
-import { borrarPlan, borrarRegistro, cambiarEstadoPlan } from "./acciones";
+import { confirmarRegistro, borrarPlan, borrarRegistro, cambiarEstadoPlan } from "./acciones";
 import { cargarOpciones } from "./lib";
 import { enlaceWhatsapp, telefonoChile } from "@/lib/whatsapp";
 
@@ -23,17 +23,33 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
   const fin = sumaDias(semana, 6);
   const dias = Array.from({ length: 7 }, (_, i) => sumaDias(semana, i));
 
-  const [{ data: plan }, { data: regs }, op] = await Promise.all([
+  const [{ data: plan }, { data: regs }, op, { data: porConfirmar }] = await Promise.all([
     supabase.from("labor_plan").select("id, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas_previstas, observacion, estado").eq("semana", semana).order("creado_en"),
-    supabase.from("labor_registro").select("id, fecha, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas, modalidad, observacion").gte("fecha", semana).lte("fecha", fin).order("fecha").order("creado_en"),
+    supabase.from("labor_registro").select("id, fecha, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas, modalidad, observacion, estado").gte("fecha", semana).lte("fecha", fin).order("fecha").order("creado_en"),
     cargarOpciones(supabase),
+    // Trabajos programados cuya fecha ya llegó (de cualquier semana): hay que confirmar si se hicieron
+    supabase.from("labor_registro").select("id, fecha, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, personas").eq("estado", "programado").lte("fecha", hoy).order("fecha"),
   ]);
   const ids = (regs ?? []).map((r: any) => r.id);
   const { data: pagos } = veMonto && ids.length ? await supabase.from("labor_pago").select("registro_id, monto").in("registro_id", ids) : { data: [] as any[] };
   const montoDe = new Map<string, number>((pagos ?? []).map((x: any) => [x.registro_id as string, Number(x.monto)]));
 
-  const totalJ = (regs ?? []).reduce((s: number, r: any) => s + Number(r.jornadas), 0);
-  const totalM = [...montoDe.values()].reduce((s, m) => s + m, 0);
+  const totalJ = (regs ?? []).filter((r: any) => r.estado !== "programado").reduce((s: number, r: any) => s + Number(r.jornadas), 0);
+  const volver = `/labores?semana=${semana}`;
+  const Confirmar = ({ r }: { r: any }) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <form action={confirmarRegistro}>
+        <input type="hidden" name="id" value={r.id} /><input type="hidden" name="volver" value={volver} />
+        <button className="boton min-h-9 px-3 py-1.5">Sí, se hizo</button>
+      </form>
+      <Link href={`/labores/registro/${r.id}`} className="boton-secundario min-h-9 px-3 py-1.5">Cambiar fecha o datos</Link>
+      <form action={borrarRegistro}>
+        <input type="hidden" name="id" value={r.id} /><input type="hidden" name="semana" value={semana} />
+        <BotonBorrar pregunta="¿No se hizo y quieres borrarlo?" className="min-h-9 px-2 text-sm text-alerta hover:underline">No se hizo, borrar</BotonBorrar>
+      </form>
+    </div>
+  );
+  const totalM = (regs ?? []).filter((r: any) => r.estado !== "programado").reduce((s: number, r: any) => s + (montoDe.get(r.id) ?? 0), 0);
 
   const botones = (
     <>
@@ -48,6 +64,24 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
     <>
       <Encabezado titulo="Labores" subtitulo="Plan de la semana y trabajo realizado por cada cuadrilla." acciones={botones} />
       {p.ok === "registro" && <div className="mb-4"><Aviso tipo="ok">Trabajo guardado. Aparece abajo, en “Trabajo registrado”.</Aviso></div>}
+      {edita && (porConfirmar ?? []).length > 0 && (
+        <section className="mb-4 overflow-hidden rounded-[var(--radius-tarjeta)] border border-ambar/40 bg-white">
+          <h2 className="bg-ambar-claro px-4 py-2 text-sm font-semibold text-ambar">
+            ¿Se hicieron estos trabajos? ({(porConfirmar ?? []).length})
+          </h2>
+          <ul className="divide-y divide-linea">
+            {(porConfirmar ?? []).map((r: any) => (
+              <li key={r.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="font-medium">{op.nombres.labor.get(r.labor_tipo_id)} · {op.donde(r)}</p>
+                  <p className="text-sm text-tinta-suave">Programado para el {nombreDia(r.fecha)} {corta(r.fecha)} · {r.cuadrilla_id ? op.nombres.cuadrilla.get(r.cuadrilla_id) : "Personal propio"} · {r.personas} personas</p>
+                </div>
+                <Confirmar r={r} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {p.ok === "editado" && <div className="mb-4"><Aviso tipo="ok">Cambios guardados.</Aviso></div>}
       {p.ok === "plan_editado" && <div className="mb-4"><Aviso tipo="ok">Tarea del plan actualizada.</Aviso></div>}
 
@@ -124,7 +158,9 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
                   <div className="min-w-56 flex-1">
                     <p className="font-medium">
                       {op.nombres.labor.get(r.labor_tipo_id)} · {op.donde(r)}
-                      {r.fecha > hoy && <span className="pastilla ml-2 bg-agua-claro text-agua">Programado</span>}
+                      {r.estado === "programado" && (r.fecha > hoy
+                        ? <span className="pastilla ml-2 bg-agua-claro text-agua">Programado</span>
+                        : <span className="pastilla ml-2 bg-ambar-claro text-ambar">¿Se hizo?</span>)}
                     </p>
                     <p className="text-sm text-tinta-suave">
                       {r.cuadrilla_id ? op.nombres.cuadrilla.get(r.cuadrilla_id) : "Personal propio"} · {r.personas} personas · {num(Number(r.jornadas), 1)} jornadas · {r.modalidad === "trato" ? "trato" : "por día"}{r.fiscalizador_id ? ` · fiscalizó ${op.nombres.trabajador.get(r.fiscalizador_id)}` : ""}

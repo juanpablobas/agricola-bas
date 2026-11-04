@@ -24,7 +24,7 @@ export async function HistoriaTemporada({ supabase, rol, cuartelId, variedadId, 
     variedadId
       ? supabase.from("aplicacion_realizada").select("id, fecha, titulo, litros_ha, observacion").eq("variedad_id", variedadId).gte("fecha", inicio).lte("fecha", termino).order("fecha", { ascending: false })
       : Promise.resolve({ data: [] }),
-    supabase.from("labor_registro").select("id, fecha, labor_tipo_id, personas, jornadas, observacion, variedad_id").or(variedadId ? `cuartel_id.eq.${cuartelId},variedad_id.eq.${variedadId}` : `cuartel_id.eq.${cuartelId}`).gte("fecha", inicio).lte("fecha", termino).order("fecha", { ascending: false }),
+    supabase.from("labor_registro").select("id, fecha, labor_tipo_id, personas, jornadas, observacion, variedad_id").or(variedadId ? `cuartel_id.eq.${cuartelId},variedad_id.eq.${variedadId}` : `cuartel_id.eq.${cuartelId}`).eq("estado", "realizado").gte("fecha", inicio).lte("fecha", termino).order("fecha", { ascending: false }),
     supabase.from("labor_tipo").select("id, nombre"),
     supabase.from("cosecha").select("id, fecha, kilos, cantidad, unidad, destino").eq("cuartel_id", cuartelId).gte("fecha", inicio).lte("fecha", termino).order("fecha", { ascending: false }),
   ]);
