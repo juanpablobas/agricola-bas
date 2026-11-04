@@ -11,7 +11,7 @@ import { enlaceWhatsapp, telefonoChile } from "@/lib/whatsapp";
 
 export const metadata = { title: "Labores" };
 
-export default async function Labores({ searchParams }: { searchParams: Promise<{ semana?: string }> }) {
+export default async function Labores({ searchParams }: { searchParams: Promise<{ semana?: string; ok?: string }> }) {
   const p = await searchParams;
   const { supabase, perfil } = await exigirRol("administrador", "enc_administrativo", "enc_agricola", "propietario", "operario");
   const edita = puede(perfil.rol, "administrador", "enc_administrativo", "enc_agricola");
@@ -46,6 +46,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
   return (
     <>
       <Encabezado titulo="Labores" subtitulo="Plan de la semana y trabajo realizado por cada cuadrilla." acciones={botones} />
+      {p.ok === "registro" && <div className="mb-4"><Aviso tipo="ok">Trabajo guardado. Aparece abajo, en “Trabajo registrado”.</Aviso></div>}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Link href={`/labores?semana=${sumaDias(semana, -7)}`} className="boton-secundario">← Semana anterior</Link>

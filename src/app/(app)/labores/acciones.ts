@@ -51,46 +51,71 @@ export async function borrarPlan(form: FormData) {
   redirect(`/labores${esFecha(semana) ? `?semana=${semana}` : ""}`);
 }
 
-export async function registrarLabor(_: EstadoFormulario, form: FormData): Promise<EstadoFormulario> {
-  const { supabase, user, perfil } = await exigirRol(...ROLES);
-  const fecha = String(form.get("fecha") ?? "");
-  const labor = idOpc(form.get("labor"));
-  const personas = leerNumero(form.get("personas"));
-  const dias = leerNumero(form.get("dias"));
-  const modalidad = String(form.get("modalidad") ?? "dia");
-  const monto = leerNumero(form.get("monto"));
-  const planId = idOpc(form.get("plan"));
+export type EstadoRegistro = { error?: string; ok?: string; valores?: Record<string, string> } | null;
 
-  if (!esFecha(fecha)) return { error: "Indica la fecha." };
-  if (fecha > hoyChile()) return { error: "La fecha no puede ser futura." };
-  if (!labor) return { error: "Elige la labor." };
-  if (personas === null || !Number.isInteger(personas) || personas < 1 || personas > 500) return { error: "Indica cuántas personas trabajaron (número entero)." };
-  if (dias === null || dias <= 0 || dias > 31) return { error: "Indica los días trabajados (por ejemplo 1, o 0,5 si fue medio día)." };
-  if (!["dia", "trato"].includes(modalidad)) return { error: "Elige cómo se paga: por día o por trato." };
-  if (monto !== null && (monto < 0 || monto > 1_000_000_000)) return { error: "Revisa el monto." };
+/** "8", "8 personas", "8,0" → 8 */
+const entero = (v: FormDataEntryValue | null) => {
+  const m = String(v ?? "").match(/\d+([.,]\d+)?/);
+  return m ? Number(m[0].replace(",", ".")) : null;
+};
 
-  const jornadas = Math.round(personas * dias * 100) / 100;
-  const { data: reg, error } = await supabase
-    .from("labor_registro")
-    .insert({
-      fecha, cuartel_id: idOpc(form.get("cuartel")), labor_tipo_id: labor, cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
-      personas, jornadas, modalidad, observacion: leerTexto(form.get("observacion")), plan_id: planId, creado_por: user.id,
-    })
-    .select("id")
-    .single();
-  if (error || !reg) return { error: "No se pudo guardar el registro." };
+export async function registrarLabor(_: EstadoRegistro, form: FormData): Promise<EstadoRegistro> {
+  const valores = Object.fromEntries([...form.entries()].filter(([k]) => !k.startsWith("$")).map(([k, v]) => [k, String(v)]));
+  const fallo = (error: string): EstadoRegistro => ({ error, valores });
+  let destino: string;
+  try {
+    const { supabase, user, perfil } = await exigirRol(...ROLES);
+    const fecha = String(form.get("fecha") ?? "").trim();
+    const labor = idOpc(form.get("labor"));
+    const personas = entero(form.get("personas"));
+    const diasTxt = String(form.get("dias") ?? "").trim();
+    const dias = diasTxt === "" ? 1 : leerNumero(diasTxt);
+    const modalidad = String(form.get("modalidad") ?? "dia");
+    const monto = leerNumero(String(form.get("monto") ?? "").replace(/[$\s]/g, ""));
+    const planId = idOpc(form.get("plan"));
 
-  if (monto !== null && puede(perfil.rol, "administrador", "enc_administrativo")) {
-    const { error: e2 } = await supabase.from("labor_pago").insert({ registro_id: reg.id, monto: Math.round(monto) });
-    if (e2) {
-      await supabase.from("labor_registro").delete().eq("id", reg.id);
-      return { error: "No se pudo guardar el monto. No se guardó nada." };
+    if (!esFecha(fecha)) return fallo("Falta la fecha del trabajo.");
+    if (fecha > hoyChile()) return fallo("La fecha no puede ser de un día que todavía no pasa.");
+    if (!labor) return fallo("Falta elegir la labor (por ejemplo Poda o Raleo).");
+    if (personas === null || !Number.isInteger(personas) || personas < 1 || personas > 500) return fallo("Falta indicar cuántas personas trabajaron (un número, por ejemplo 8).");
+    if (dias === null || dias <= 0 || dias > 31) return fallo("Revisa los días trabajados: 1 si fue un día completo, 0,5 si fue medio día.");
+    if (!["dia", "trato"].includes(modalidad)) return fallo("Elige cómo se paga: por día o por trato.");
+    if (monto !== null && (monto < 0 || monto > 1_000_000_000)) return fallo("Revisa el monto pagado.");
+
+    const jornadas = Math.round(personas * dias * 100) / 100;
+    const { data: reg, error } = await supabase
+      .from("labor_registro")
+      .insert({
+        fecha, cuartel_id: idOpc(form.get("cuartel")), labor_tipo_id: labor, cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
+        personas, jornadas, modalidad, observacion: leerTexto(form.get("observacion")), plan_id: planId, creado_por: user.id,
+      })
+      .select("id")
+      .single();
+    if (error || !reg) {
+      console.error("registrarLabor", error);
+      return fallo(`No se pudo guardar el registro${error?.message ? ` (${error.message})` : ""}. Intenta de nuevo; si sigue, avísame con este mensaje.`);
     }
-  }
-  if (planId) await supabase.from("labor_plan").update({ estado: "hecha" }).eq("id", planId);
 
-  revalidatePath("/labores", "layout");
-  redirect(`/labores?semana=${lunesDe(fecha)}`);
+    if (monto !== null && puede(perfil.rol, "administrador", "enc_administrativo")) {
+      const { error: e2 } = await supabase.from("labor_pago").insert({ registro_id: reg.id, monto: Math.round(monto) });
+      if (e2) {
+        console.error("registrarLabor pago", e2);
+        await supabase.from("labor_registro").delete().eq("id", reg.id);
+        return fallo("No se pudo guardar el monto, así que no se guardó nada. Intenta de nuevo.");
+      }
+    }
+    if (planId) await supabase.from("labor_plan").update({ estado: "hecha" }).eq("id", planId);
+
+    revalidatePath("/labores", "layout");
+    revalidatePath("/");
+    destino = `/labores?semana=${lunesDe(fecha)}&ok=registro`;
+  } catch (e) {
+    // exigirRol puede redirigir (sesión vencida): esa señal se deja pasar
+    if (e && typeof e === "object" && "digest" in e && String((e as { digest?: string }).digest).startsWith("NEXT_REDIRECT")) throw e;
+    console.error("registrarLabor excepción", e);
+    return fallo("Algo falló al guardar. Revisa tu conexión e intenta de nuevo.");
+  }
+  redirect(destino);
 }
 
 export async function borrarRegistro(form: FormData) {
