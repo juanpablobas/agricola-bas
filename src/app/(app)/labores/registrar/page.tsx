@@ -4,9 +4,9 @@ import { Encabezado } from "@/components/Encabezado";
 import { FormRegistro, type Inicial } from "../FormRegistro";
 import { cargarOpciones } from "../lib";
 
-export const metadata = { title: "Registrar trabajo" };
+export const metadata = { title: "Agregar labor" };
 
-export default async function Registrar({ searchParams }: { searchParams: Promise<{ plan?: string }> }) {
+export default async function Registrar({ searchParams }: { searchParams: Promise<{ plan?: string; estado?: string }> }) {
   const p = await searchParams;
   const { supabase, perfil } = await exigirRol("administrador", "enc_administrativo", "enc_agricola");
 
@@ -19,9 +19,9 @@ export default async function Registrar({ searchParams }: { searchParams: Promis
   const hoy = hoyChile();
   return (
     <>
-      <Encabezado titulo="Registrar trabajo" subtitulo={inicial.plan ? "Viene de lo planificado: confirma las personas y los días." : "Lo que hizo una cuadrilla en un día."} volver={{ href: `/labores?semana=${lunesDe(hoy)}`, texto: "Labores" }} />
+      <Encabezado titulo="Agregar labor" subtitulo="Un trabajo ya hecho, o uno por hacer (acordado con un contratista o planificado)." volver={{ href: `/labores?semana=${lunesDe(hoy)}`, texto: "Labores" }} />
       <section className="tarjeta max-w-2xl p-5">
-        <FormRegistro hoy={hoy} cuarteles={op.cuarteles} variedades={op.variedades} labores={op.labores} cuadrillas={op.cuadrillas} trabajadores={op.trabajadores} conMonto={puede(perfil.rol, "administrador", "enc_administrativo")} inicial={inicial} />
+        <FormRegistro hoy={hoy} cuarteles={op.cuarteles} variedades={op.variedades} labores={op.labores} cuadrillas={op.cuadrillas} trabajadores={op.trabajadores} conMonto={puede(perfil.rol, "administrador", "enc_administrativo")} inicial={inicial} estadoInicial={p.estado === "programado" ? "programado" : "realizado"} />
       </section>
     </>
   );

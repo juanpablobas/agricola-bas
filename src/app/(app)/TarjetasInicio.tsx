@@ -137,15 +137,15 @@ export function TarjetaAplicaciones({ atrasadas, esteMes, lista }: { atrasadas: 
   );
 }
 
-export function TarjetaLabores({ planificadas, hechas, registros, puedePlanificar, semana }: { planificadas: number; hechas: number; registros: number; puedePlanificar: boolean; semana: string }) {
+export function TarjetaLabores({ planificadas, hechas, puedePlanificar }: { planificadas: number; hechas: number; puedePlanificar: boolean; semana?: string; porConfirmar?: number }) {
   const total = planificadas + hechas;
   return (
     <Tarjeta titulo="Labores de la semana" icono="labores" href="/labores">
-      {total === 0 && registros === 0 ? (
+      {total === 0 ? (
         <div className="flex flex-1 flex-col justify-between gap-3">
-          <p className="text-sm text-tinta-suave">Todavía no hay labores planificadas ni registradas esta semana.</p>
+          <p className="text-sm text-tinta-suave">Todavía no hay labores anotadas esta semana.</p>
           {puedePlanificar && (
-            <Link href={`/labores/plan?semana=${semana}`} className="boton-secundario self-start"><Icono nombre="mas" className="size-4" />Planificar la semana</Link>
+            <Link href="/labores/registrar" className="boton-secundario self-start"><Icono nombre="mas" className="size-4" />Agregar labor</Link>
           )}
         </div>
       ) : (
@@ -153,14 +153,13 @@ export function TarjetaLabores({ planificadas, hechas, registros, puedePlanifica
           <div className="flex gap-6">
             <Cifra valor={planificadas} etiqueta="por hacer" tono={planificadas > 0 ? "normal" : "suave"} />
             <Cifra valor={hechas} etiqueta="hechas" tono="ok" />
-            <Cifra valor={registros} etiqueta="registros" tono="suave" />
           </div>
           {total > 0 && (
             <div className="mt-4">
-              <div className="h-2 overflow-hidden rounded-full bg-papel" role="img" aria-label={`${hechas} de ${total} labores planificadas hechas`}>
+              <div className="h-2 overflow-hidden rounded-full bg-papel" role="img" aria-label={`${hechas} de ${total} labores hechas`}>
                 <div className="h-full rounded-full bg-verde" style={{ width: `${(hechas / total) * 100}%` }} />
               </div>
-              <p className="mt-1 text-xs text-tinta-suave">{hechas} de {total} planificadas</p>
+              <p className="mt-1 text-xs text-tinta-suave">{hechas} de {total} labores de la semana hechas</p>
             </div>
           )}
         </>

@@ -88,12 +88,12 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
     veProgramas
       ? intentar(async () => {
           const [{ data: plan }, { count }, { count: porConfirmar }] = await Promise.all([
-            supabase.from("labor_plan").select("estado").eq("semana", semana),
+            supabase.from("labor_registro").select("estado").gte("fecha", semana).lte("fecha", sumaDias(semana, 6)),
             supabase.from("labor_registro").select("id", { count: "exact", head: true }).eq("estado", "realizado").gte("fecha", semana).lte("fecha", sumaDias(semana, 6)),
             supabase.from("labor_registro").select("id", { count: "exact", head: true }).eq("estado", "programado").lte("fecha", hoy),
           ]);
           const p = (plan ?? []) as { estado: string }[];
-          return { planificadas: p.filter((x) => x.estado === "pendiente").length, hechas: p.filter((x) => x.estado === "hecha").length, registros: count ?? 0, porConfirmar: porConfirmar ?? 0 };
+          return { planificadas: p.filter((x) => x.estado === "programado").length, hechas: count ?? 0, porConfirmar: porConfirmar ?? 0 };
         }, null)
       : Promise.resolve(null),
     veFinanzas && temporada
@@ -145,13 +145,13 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
 
   const atencion: { texto: React.ReactNode; href?: string; nivel: "alto" | "medio" }[] = [
     ...alertasClima.map((a) => ({ texto: <><strong>{a.fecha === hoy ? "Hoy" : "Mañana"}:</strong> {a.titulo}</>, href: "/clima", nivel: a.nivel })),
-    ...(labores && labores.porConfirmar > 0 ? [{ texto: <>Hay <strong>{labores.porConfirmar}</strong> {labores.porConfirmar === 1 ? "trabajo programado" : "trabajos programados"} cuya fecha ya pasó: confirma si se hizo.</>, href: "/labores", nivel: "medio" as const }] : []),
+    ...(labores && labores.porConfirmar > 0 ? [{ texto: <>Hay <strong>{labores.porConfirmar}</strong> {labores.porConfirmar === 1 ? "labor por hacer" : "labores por hacer"} cuyo día ya llegó: confirma si se hizo.</>, href: "/labores", nivel: "medio" as const }] : []),
     ...(atrasadas > 0 ? [{ texto: <>Hay <strong>{atrasadas}</strong> {atrasadas === 1 ? "aplicación atrasada" : "aplicaciones atrasadas"}: regístrala o posponla.</>, href: "/programas", nivel: "alto" as const }] : []),
   ];
 
   const accesos = gestiona
     ? [
-        { href: "/labores/registrar", texto: "Registrar labor", icono: "labores" },
+        { href: "/labores/registrar", texto: "Agregar labor", icono: "labores" },
         { href: "/programas/aplicar", texto: "Registrar aplicación", icono: "programas" },
         { href: "/inventario/salida", texto: "Sacar de bodega", icono: "inventario" },
         { href: "/cosecha/registrar", texto: "Registrar cosecha", icono: "cosecha" },

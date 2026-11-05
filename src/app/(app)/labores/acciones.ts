@@ -86,27 +86,32 @@ export async function registrarLabor(_: EstadoRegistro, form: FormData): Promise
     const { supabase, user, perfil } = await exigirRol(...ROLES);
     const fecha = String(form.get("fecha") ?? "").trim();
     const labor = idOpc(form.get("labor"));
-    const personas = entero(form.get("personas"));
+    const personasTxt = String(form.get("personas") ?? "").trim();
+    const personas = personasTxt === "" ? null : entero(personasTxt);
     const diasTxt = String(form.get("dias") ?? "").trim();
     const dias = diasTxt === "" ? 1 : leerNumero(diasTxt);
     const modalidad = String(form.get("modalidad") ?? "dia");
     const monto = pesos(form.get("monto"));
     const planId = idOpc(form.get("plan"));
     const id = idOpc(form.get("id"));
+    const hoy = hoyChile();
+    // "Por hacer" o "Ya se hizo": lo elige quien registra; una fecha futura siempre es por hacer
+    const pedido = String(form.get("estado") ?? "");
+    const porHacer = pedido === "programado";
 
-    if (!esFecha(fecha)) return fallo("Falta la fecha del trabajo.");
-    // Se permiten fechas futuras (trabajos ya acordados con contratistas), hasta un año
-    if (fecha > sumaDias(hoyChile(), 366)) return fallo("Revisa la fecha: está a más de un año.");
+    if (!esFecha(fecha)) return fallo("Falta la fecha.");
+    if (fecha > sumaDias(hoy, 366)) return fallo("Revisa la fecha: está a más de un año.");
+    if (!porHacer && fecha > hoy) return fallo("Si ya se hizo, la fecha no puede ser un día que todavía no llega. Cambia la fecha o marca “Por hacer”.");
     if (!labor) return fallo("Falta elegir la labor (por ejemplo Poda o Raleo).");
-    if (personas === null || !Number.isInteger(personas) || personas < 1 || personas > 500) return fallo("Falta indicar cuántas personas trabajaron (un número, por ejemplo 8).");
-    if (dias === null || dias <= 0 || dias > 31) return fallo("Revisa los días trabajados: 1 si fue un día completo, 0,5 si fue medio día.");
+    if (personas !== null && (!Number.isInteger(personas) || personas < 1 || personas > 500)) return fallo("Revisa las personas: un número entero, por ejemplo 8.");
+    if (!porHacer && personas === null) return fallo("Falta indicar cuántas personas trabajaron (por ejemplo 8).");
+    if (dias === null || dias <= 0 || dias > 31) return fallo("Revisa los días: 1 si es un día completo, 0,5 si es medio día.");
     if (!["dia", "trato"].includes(modalidad)) return fallo("Elige cómo se paga: por día o por trato.");
-    if (monto !== null && (monto < 0 || monto > 1_000_000_000)) return fallo("Revisa el monto pagado.");
+    if (monto !== null && (monto < 0 || monto > 1_000_000_000)) return fallo("Revisa el monto.");
 
-    const jornadas = Math.round(personas * dias * 100) / 100;
-    const programado = fecha > hoyChile();
+    const jornadas = personas !== null ? Math.round(personas * dias * 100) / 100 : null;
     const datos = {
-      ...(programado ? { estado: "programado" } : id ? {} : { estado: "realizado" }),
+      estado: porHacer ? "programado" : "realizado",
       fecha, ...lugar(form.get("cuartel")), labor_tipo_id: labor, cuadrilla_id: idOpc(form.get("cuadrilla")), fiscalizador_id: idOpc(form.get("fiscalizador")),
       personas, jornadas, modalidad, observacion: leerTexto(form.get("observacion")),
     };
@@ -135,7 +140,7 @@ export async function registrarLabor(_: EstadoRegistro, form: FormData): Promise
 
     revalidatePath("/labores", "layout");
     revalidatePath("/");
-    destino = `/labores?semana=${lunesDe(fecha)}&ok=${id ? "editado" : "registro"}`;
+    destino = `/labores?semana=${lunesDe(fecha)}&ok=${id ? "editado" : porHacer ? "por_hacer" : "registro"}`;
   } catch (e) {
     // exigirRol puede redirigir (sesión vencida): esa señal se deja pasar
     if (e && typeof e === "object" && "digest" in e && String((e as { digest?: string }).digest).startsWith("NEXT_REDIRECT")) throw e;
@@ -146,14 +151,18 @@ export async function registrarLabor(_: EstadoRegistro, form: FormData): Promise
 }
 
 /** Trabajo programado cuya fecha ya llegó: ¿se hizo? */
+/** Labor por hacer cuya fecha llegó: "Sí, se hizo". Si faltan las personas, se abre para completarlas. */
 export async function confirmarRegistro(form: FormData) {
   const { supabase } = await exigirRol(...ROLES);
   const id = idOpc(form.get("id"));
   const volver = String(form.get("volver") ?? "/labores");
-  if (id) await supabase.from("labor_registro").update({ estado: "realizado" }).eq("id", id);
+  if (!id) redirect("/labores");
+  const { data: r } = await supabase.from("labor_registro").select("personas, fecha").eq("id", id).maybeSingle();
+  if (r && (r.personas == null || r.fecha > hoyChile())) redirect(`/labores/registro/${id}?hecho=1`);
+  await supabase.from("labor_registro").update({ estado: "realizado" }).eq("id", id);
   revalidatePath("/labores", "layout");
   revalidatePath("/");
-  redirect(volver.startsWith("/labores") ? volver : "/labores");
+  redirect(volver.startsWith("/labores") ? `${volver}${volver.includes("?") ? "&" : "?"}ok=hecho` : "/labores");
 }
 
 export async function borrarRegistro(form: FormData) {

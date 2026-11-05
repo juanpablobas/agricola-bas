@@ -6,11 +6,13 @@ import { Encabezado } from "@/components/Encabezado";
 import { Aviso } from "@/components/Aviso";
 import { BotonBorrar } from "@/components/BotonBorrar";
 import { Icono } from "@/components/Icono";
-import { confirmarRegistro, borrarPlan, borrarRegistro, cambiarEstadoPlan } from "./acciones";
+import { confirmarRegistro, borrarRegistro } from "./acciones";
 import { cargarOpciones } from "./lib";
 import { enlaceWhatsapp, telefonoChile } from "@/lib/whatsapp";
 
 export const metadata = { title: "Labores" };
+
+const CAMPOS = "id, fecha, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas, modalidad, observacion, estado";
 
 export default async function Labores({ searchParams }: { searchParams: Promise<{ semana?: string; ok?: string }> }) {
   const p = await searchParams;
@@ -23,157 +25,154 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
   const fin = sumaDias(semana, 6);
   const dias = Array.from({ length: 7 }, (_, i) => sumaDias(semana, i));
 
-  const [{ data: plan }, { data: regs }, op, { data: porConfirmar }] = await Promise.all([
-    supabase.from("labor_plan").select("id, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas_previstas, observacion, estado").eq("semana", semana).order("creado_en"),
-    supabase.from("labor_registro").select("id, fecha, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas, modalidad, observacion, estado").gte("fecha", semana).lte("fecha", fin).order("fecha").order("creado_en"),
+  const [{ data: regs }, op, { data: atrasadas }] = await Promise.all([
+    supabase.from("labor_registro").select(CAMPOS).gte("fecha", semana).lte("fecha", fin).order("fecha").order("creado_en"),
     cargarOpciones(supabase),
-    // Trabajos programados cuya fecha ya llegó (de cualquier semana): hay que confirmar si se hicieron
-    supabase.from("labor_registro").select("id, fecha, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, personas").eq("estado", "programado").lte("fecha", hoy).order("fecha"),
+    // Lo que estaba por hacer y su día ya llegó (de cualquier semana): hay que confirmar si se hizo
+    supabase.from("labor_registro").select(CAMPOS).eq("estado", "programado").lte("fecha", hoy).order("fecha"),
   ]);
-  const ids = (regs ?? []).map((r: any) => r.id);
+  const todos = [...((regs ?? []) as any[]), ...((atrasadas ?? []) as any[])];
+  const ids = [...new Set(todos.map((r) => r.id))];
   const { data: pagos } = veMonto && ids.length ? await supabase.from("labor_pago").select("registro_id, monto").in("registro_id", ids) : { data: [] as any[] };
   const montoDe = new Map<string, number>((pagos ?? []).map((x: any) => [x.registro_id as string, Number(x.monto)]));
 
-  const totalJ = (regs ?? []).filter((r: any) => r.estado !== "programado").reduce((s: number, r: any) => s + Number(r.jornadas), 0);
+  const porConfirmar = (atrasadas ?? []) as any[];
+  const porHacer = ((regs ?? []) as any[]).filter((r) => r.estado === "programado" && r.fecha > hoy);
+  const hechos = ((regs ?? []) as any[]).filter((r) => r.estado !== "programado");
+  const totalJ = hechos.reduce((s, r) => s + Number(r.jornadas ?? 0), 0);
+  const totalM = hechos.reduce((s, r) => s + (montoDe.get(r.id) ?? 0), 0);
   const volver = `/labores?semana=${semana}`;
-  const Confirmar = ({ r }: { r: any }) => (
-    <div className="flex flex-wrap items-center gap-2">
-      <form action={confirmarRegistro}>
-        <input type="hidden" name="id" value={r.id} /><input type="hidden" name="volver" value={volver} />
-        <button className="boton min-h-9 px-3 py-1.5">Sí, se hizo</button>
-      </form>
-      <Link href={`/labores/registro/${r.id}`} className="boton-secundario min-h-9 px-3 py-1.5">Cambiar fecha o datos</Link>
+
+  const detalle = (r: any) =>
+    [
+      r.cuadrilla_id ? op.nombres.cuadrilla.get(r.cuadrilla_id) : "Personal propio",
+      r.personas ? `${r.personas} personas` : null,
+      r.estado !== "programado" && r.jornadas ? `${num(Number(r.jornadas), 1)} jornadas` : null,
+      r.modalidad === "trato" ? "trato" : null,
+      r.fiscalizador_id ? `${r.estado === "programado" ? "fiscaliza" : "fiscalizó"} ${op.nombres.trabajador.get(r.fiscalizador_id)}` : null,
+      r.observacion,
+    ].filter(Boolean).join(" · ");
+
+  const Acciones = ({ r, conHecho }: { r: any; conHecho?: boolean }) => (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+      {conHecho && (
+        <form action={confirmarRegistro}>
+          <input type="hidden" name="id" value={r.id} /><input type="hidden" name="volver" value={volver} />
+          <button className="boton min-h-9 px-3 py-1.5"><Icono nombre="ok" className="size-4" />Sí, se hizo</button>
+        </form>
+      )}
+      <Link href={`/labores/registro/${r.id}`} className="font-medium text-verde hover:underline">Editar</Link>
       <form action={borrarRegistro}>
         <input type="hidden" name="id" value={r.id} /><input type="hidden" name="semana" value={semana} />
-        <BotonBorrar pregunta="¿No se hizo y quieres borrarlo?" className="min-h-9 px-2 text-sm text-alerta hover:underline">No se hizo, borrar</BotonBorrar>
+        <BotonBorrar pregunta={r.estado === "programado" ? "¿Borrar esta labor por hacer?" : "¿Borrar este trabajo? Se borra también su monto."} />
       </form>
     </div>
   );
-  const totalM = (regs ?? []).filter((r: any) => r.estado !== "programado").reduce((s: number, r: any) => s + (montoDe.get(r.id) ?? 0), 0);
+
+  const Avisos = ({ r }: { r: any }) => {
+    const labor = (op.nombres.labor.get(r.labor_tipo_id) ?? "labor").toLowerCase();
+    const donde = r.cuartel_id ? `en el cuartel ${op.nombres.cuartel.get(r.cuartel_id)}` : r.variedad_id ? `en ${op.donde(r)}` : "en el campo";
+    const cuando = `el ${nombreDia(r.fecha)} ${corta(r.fecha)}`;
+    const gato = r.cuadrilla_id ? op.nombres.cuadrilla.get(r.cuadrilla_id) : null;
+    const nota = r.observacion ? ` ${r.observacion}.` : "";
+    const aFisc = r.fiscalizador_id ? `Hola ${op.nombres.trabajador.get(r.fiscalizador_id)}, ${cuando} toca ${labor} ${donde}.${gato ? ` Trabaja ${gato}.` : ""} Tú fiscalizas que quede bien hecha.${nota} Cuando termine, avísame. — Agrícola BAS` : null;
+    const aGato = gato ? `Hola, ${cuando} toca ${labor} ${donde}.${r.personas ? ` Necesitamos ${r.personas} personas.` : ""}${nota} Confírmame por favor. — Agrícola BAS` : null;
+    const telF = r.fiscalizador_id ? op.telefonos.trabajador.get(r.fiscalizador_id) : null;
+    const telG = r.cuadrilla_id ? op.telefonos.cuadrilla.get(r.cuadrilla_id) : null;
+    if (!aFisc && !aGato) return null;
+    return (
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        {aFisc && <a href={enlaceWhatsapp(telF, aFisc)} target="_blank" rel="noopener noreferrer" className="hover:underline" title={telefonoChile(telF) ? "Abre WhatsApp con el mensaje listo" : "Sin celular guardado: WhatsApp te deja elegir el contacto"}>Avisar al fiscalizador</a>}
+        {aGato && <a href={enlaceWhatsapp(telG, aGato)} target="_blank" rel="noopener noreferrer" className="hover:underline">Avisar a la cuadrilla</a>}
+      </div>
+    );
+  };
 
   const botones = (
     <>
-      {edita && <Link href="/labores/registrar" className="boton"><Icono nombre="mas" className="size-4" />Registrar trabajo</Link>}
-      {edita && <Link href={`/labores/plan?semana=${semana}`} className="boton-secundario">Planificar</Link>}
+      {edita && <Link href="/labores/registrar" className="boton"><Icono nombre="mas" className="size-4" />Agregar labor</Link>}
       {perfil.rol !== "operario" && <Link href="/labores/resumen" className="boton-secundario"><Icono nombre="finanzas" className="size-4" />Resumen</Link>}
-      {perfil.rol !== "operario" && <Link href="/labores/catalogos" className="boton-secundario">Cuadrillas, trabajadores y labores</Link>}
+      {perfil.rol !== "operario" && <Link href="/labores/catalogos" className="boton-secundario">Cuadrillas y trabajadores</Link>}
     </>
   );
 
   return (
     <>
-      <Encabezado titulo="Labores" subtitulo="Plan de la semana y trabajo realizado por cada cuadrilla." acciones={botones} />
-      {p.ok === "registro" && <div className="mb-4"><Aviso tipo="ok">Trabajo guardado. Aparece abajo, en “Trabajo registrado”.</Aviso></div>}
-      {edita && (porConfirmar ?? []).length > 0 && (
+      <Encabezado titulo="Labores" subtitulo="Anota cada labor una vez: lo que está por hacer queda en azul y, cuando se haga, lo confirmas." acciones={botones} />
+      {p.ok === "registro" && <div className="mb-4"><Aviso tipo="ok">Trabajo guardado.</Aviso></div>}
+      {p.ok === "por_hacer" && <div className="mb-4"><Aviso tipo="ok">Labor guardada como por hacer. Cuando llegue el día, la app te preguntará si se hizo.</Aviso></div>}
+      {p.ok === "hecho" && <div className="mb-4"><Aviso tipo="ok">Listo, quedó como hecha.</Aviso></div>}
+      {p.ok === "editado" && <div className="mb-4"><Aviso tipo="ok">Cambios guardados.</Aviso></div>}
+
+      {edita && porConfirmar.length > 0 && (
         <section className="mb-4 overflow-hidden rounded-[var(--radius-tarjeta)] border border-ambar/40 bg-white">
-          <h2 className="bg-ambar-claro px-4 py-2 text-sm font-semibold text-ambar">
-            ¿Se hicieron estos trabajos? ({(porConfirmar ?? []).length})
-          </h2>
+          <h2 className="bg-ambar-claro px-4 py-2 text-sm font-semibold text-ambar">¿Se hicieron? ({porConfirmar.length})</h2>
           <ul className="divide-y divide-linea">
-            {(porConfirmar ?? []).map((r: any) => (
+            {porConfirmar.map((r) => (
               <li key={r.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="font-medium">{op.nombres.labor.get(r.labor_tipo_id)} · {op.donde(r)}</p>
-                  <p className="text-sm text-tinta-suave">Programado para el {nombreDia(r.fecha)} {corta(r.fecha)} · {r.cuadrilla_id ? op.nombres.cuadrilla.get(r.cuadrilla_id) : "Personal propio"} · {r.personas} personas</p>
+                  <p className="text-sm text-tinta-suave">Era para el {nombreDia(r.fecha)} {corta(r.fecha)} · {detalle(r)}</p>
                 </div>
-                <Confirmar r={r} />
+                <Acciones r={r} conHecho />
               </li>
             ))}
           </ul>
+          <p className="border-t border-linea px-4 py-2 text-xs text-tinta-suave">Si no se hizo ese día, toca Editar y cámbiale la fecha.</p>
         </section>
       )}
-      {p.ok === "editado" && <div className="mb-4"><Aviso tipo="ok">Cambios guardados.</Aviso></div>}
-      {p.ok === "plan_editado" && <div className="mb-4"><Aviso tipo="ok">Tarea del plan actualizada.</Aviso></div>}
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Link href={`/labores?semana=${sumaDias(semana, -7)}`} className="boton-secundario">← Semana anterior</Link>
-        <p className="px-2 font-medium">Semana del {corta(semana)} al {corta(fin)}</p>
-        <Link href={`/labores?semana=${sumaDias(semana, 7)}`} className="boton-secundario">Semana siguiente →</Link>
-        {semana !== lunesDe(hoy) && <Link href="/labores" className="text-sm underline">Ir a esta semana</Link>}
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <Link href={`/labores?semana=${sumaDias(semana, -7)}`} className="boton-secundario px-3" aria-label="Semana anterior">←</Link>
+        <div className="text-center">
+          <p className="font-medium">Semana del {corta(semana)} al {corta(fin)}</p>
+          {semana !== lunesDe(hoy) && <Link href="/labores" className="text-sm text-verde underline">Ir a esta semana</Link>}
+        </div>
+        <Link href={`/labores?semana=${sumaDias(semana, 7)}`} className="boton-secundario px-3" aria-label="Semana siguiente">→</Link>
       </div>
 
-      <section className="tarjeta mb-4">
-        <h2 className="p-4 pb-2 font-semibold">Plan de la semana</h2>
-        {(plan ?? []).length === 0 ? (
-          <p className="px-4 pb-4 text-sm text-tinta-suave">Todavía no hay nada planificado. {edita && <Link href={`/labores/plan?semana=${semana}`} className="underline">Agregar al plan</Link>}</p>
+      <section className="tarjeta mb-4 overflow-hidden">
+        <h2 className="flex items-center gap-2 p-4 pb-2 font-semibold"><span className="size-2.5 rounded-full bg-agua" />Por hacer</h2>
+        {porHacer.length === 0 ? (
+          <p className="px-4 pb-4 text-sm text-tinta-suave">
+            Nada por hacer anotado para lo que queda de esta semana.{" "}
+            {edita && <Link href="/labores/registrar?estado=programado" className="text-verde underline">Agregar una labor por hacer</Link>}
+          </p>
         ) : (
-          (plan ?? []).map((x: any) => (
-            <div key={x.id} className={`flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-linea px-4 py-3 ${x.estado !== "pendiente" ? "text-tinta-suave" : ""}`}>
-              <div className="min-w-56 flex-1">
-                <p className={`font-medium ${x.estado === "cancelada" ? "line-through" : ""}`}>{op.nombres.labor.get(x.labor_tipo_id)} · {op.donde(x)}</p>
-                <p className="text-sm text-tinta-suave">
-                  {x.cuadrilla_id ? op.nombres.cuadrilla.get(x.cuadrilla_id) : "Cuadrilla por definir"}
-                  {x.personas_previstas ? ` · ${x.personas_previstas} personas` : ""}{x.fiscalizador_id ? ` · fiscaliza ${op.nombres.trabajador.get(x.fiscalizador_id)}` : ""}{x.observacion ? ` · ${x.observacion}` : ""}
-                </p>
-              </div>
-              <span className={`pastilla ${x.estado === "hecha" ? "bg-verde-claro text-verde-oscuro" : x.estado === "cancelada" ? "bg-alerta-claro text-alerta" : "bg-ambar-claro text-ambar"}`}>{x.estado === "hecha" ? "Hecha" : x.estado === "cancelada" ? "Cancelada" : "Pendiente"}</span>
-              {edita && (
-                <div className="flex items-center gap-3 text-sm">
-                  {x.estado === "pendiente" && <Link href={`/labores/registrar?plan=${x.id}`} className="font-medium text-verde hover:underline">Registrar</Link>}
-                  <Link href={`/labores/plan/${x.id}`} className="hover:underline">Editar</Link>
-                  {x.estado === "pendiente" && (() => {
-                    const labor = op.nombres.labor.get(x.labor_tipo_id) ?? "Labor";
-                    const donde = x.cuartel_id ? `en el cuartel ${op.nombres.cuartel.get(x.cuartel_id)}` : x.variedad_id ? `en ${op.donde(x)}` : "en el campo";
-                    const cuando = `esta semana (del ${corta(semana)} al ${corta(fin)})`;
-                    const gato = x.cuadrilla_id ? op.nombres.cuadrilla.get(x.cuadrilla_id) : null;
-                    const nota = x.observacion ? ` ${x.observacion}.` : "";
-                    const aFisc = x.fiscalizador_id ? `Hola ${op.nombres.trabajador.get(x.fiscalizador_id)}, ${cuando} toca ${labor.toLowerCase()} ${donde}.${gato ? ` Trabaja ${gato}: tú fiscalizas que quede bien hecha.` : " Tú fiscalizas que quede bien hecha."}${nota} Cuando termine, avísame para registrarla. — Agrícola BAS` : null;
-                    const aGato = gato ? `Hola, ${cuando} toca ${labor.toLowerCase()} ${donde}.${x.personas_previstas ? ` Necesitamos ${x.personas_previstas} personas.` : ""}${nota} Confirmame por favor. — Agrícola BAS` : null;
-                    const telF = x.fiscalizador_id ? op.telefonos.trabajador.get(x.fiscalizador_id) : null;
-                    const telG = x.cuadrilla_id ? op.telefonos.cuadrilla.get(x.cuadrilla_id) : null;
-                    return (
-                      <>
-                        {aFisc && <a href={enlaceWhatsapp(telF, aFisc)} target="_blank" rel="noopener noreferrer" className="hover:underline" title={telefonoChile(telF) ? "Abre WhatsApp con el mensaje listo" : "Sin celular guardado: WhatsApp te deja elegir el contacto"}>Avisar al fiscalizador</a>}
-                        {aGato && <a href={enlaceWhatsapp(telG, aGato)} target="_blank" rel="noopener noreferrer" className="hover:underline">Avisar a la cuadrilla</a>}
-                      </>
-                    );
-                  })()}
-                  <form action={cambiarEstadoPlan}>
-                    <input type="hidden" name="id" value={x.id} /><input type="hidden" name="semana" value={semana} />
-                    <input type="hidden" name="estado" value={x.estado === "pendiente" ? "cancelada" : "pendiente"} />
-                    <button className="hover:underline">{x.estado === "pendiente" ? "Cancelar" : "Reabrir"}</button>
-                  </form>
-                  <form action={borrarPlan}><input type="hidden" name="id" value={x.id} /><input type="hidden" name="semana" value={semana} /><BotonBorrar pregunta="¿Borrar esta tarea del plan?" className="text-alerta hover:underline" /></form>
+          <ul className="divide-y divide-linea border-t border-linea">
+            {porHacer.map((r) => (
+              <li key={r.id} className="flex flex-col gap-2 px-4 py-3 shadow-[inset_4px_0_0_var(--color-agua)]">
+                <div>
+                  <p className="font-medium">{op.nombres.labor.get(r.labor_tipo_id)} · {op.donde(r)}</p>
+                  <p className="text-sm text-tinta-suave"><span className="font-medium text-agua first-letter:uppercase">{nombreDia(r.fecha)} {corta(r.fecha)}</span> · {detalle(r)}{veMonto && montoDe.has(r.id) ? ` · ${clp(montoDe.get(r.id))} acordado` : ""}</p>
                 </div>
-              )}
-            </div>
-          ))
+                {edita && <><Avisos r={r} /><Acciones r={r} /></>}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 
-      <section className="tarjeta">
+      <section className="tarjeta overflow-hidden">
         <div className="flex flex-wrap items-baseline justify-between gap-2 p-4 pb-2">
-          <h2 className="font-semibold">Trabajo registrado</h2>
+          <h2 className="flex items-center gap-2 font-semibold"><span className="size-2.5 rounded-full bg-verde" />Hecho</h2>
           <p className="text-sm text-tinta-suave">{num(totalJ, 1)} jornadas{veMonto && totalM > 0 ? ` · ${clp(totalM)}` : ""}</p>
         </div>
-        {(regs ?? []).length === 0 && <div className="px-4 pb-4"><Aviso>Aún no hay trabajo registrado esta semana.</Aviso></div>}
+        {hechos.length === 0 && <p className="px-4 pb-4 text-sm text-tinta-suave">Todavía no hay trabajo hecho anotado en esta semana.</p>}
         {dias.map((d) => {
-          const delDia = (regs ?? []).filter((r: any) => r.fecha === d);
+          const delDia = hechos.filter((r) => r.fecha === d);
           if (delDia.length === 0) return null;
           return (
             <div key={d} className="border-t border-linea">
-              <p className="bg-papel/60 px-4 py-1.5 text-sm font-medium capitalize">{nombreDia(d)} {corta(d)} <span className="font-normal text-tinta-suave">· {num(delDia.reduce((s: number, r: any) => s + Number(r.jornadas), 0), 1)} jornadas</span></p>
-              {delDia.map((r: any) => (
+              <p className="bg-papel/60 px-4 py-1.5 text-sm font-medium capitalize">{nombreDia(d)} {corta(d)} <span className="font-normal text-tinta-suave">· {num(delDia.reduce((s, r) => s + Number(r.jornadas ?? 0), 0), 1)} jornadas</span></p>
+              {delDia.map((r) => (
                 <div key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
                   <div className="min-w-56 flex-1">
-                    <p className="font-medium">
-                      {op.nombres.labor.get(r.labor_tipo_id)} · {op.donde(r)}
-                      {r.estado === "programado" && (r.fecha > hoy
-                        ? <span className="pastilla ml-2 bg-agua-claro text-agua">Programado</span>
-                        : <span className="pastilla ml-2 bg-ambar-claro text-ambar">¿Se hizo?</span>)}
-                    </p>
-                    <p className="text-sm text-tinta-suave">
-                      {r.cuadrilla_id ? op.nombres.cuadrilla.get(r.cuadrilla_id) : "Personal propio"} · {r.personas} personas · {num(Number(r.jornadas), 1)} jornadas · {r.modalidad === "trato" ? "trato" : "por día"}{r.fiscalizador_id ? ` · fiscalizó ${op.nombres.trabajador.get(r.fiscalizador_id)}` : ""}
-                      {r.observacion ? ` · ${r.observacion}` : ""}
-                    </p>
+                    <p className="font-medium">{op.nombres.labor.get(r.labor_tipo_id)} · {op.donde(r)}</p>
+                    <p className="text-sm text-tinta-suave">{detalle(r)}</p>
                   </div>
                   {veMonto && montoDe.has(r.id) && <span className="text-sm font-medium">{clp(montoDe.get(r.id))}</span>}
-                  {edita && (
-                    <div className="flex items-center gap-4 text-sm">
-                      <Link href={`/labores/registro/${r.id}`} className="font-medium text-verde hover:underline">Editar</Link>
-                      <form action={borrarRegistro}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="semana" value={semana} /><BotonBorrar pregunta="¿Borrar este trabajo registrado? Se borra también su monto." /></form>
-                    </div>
-                  )}
+                  {edita && <Acciones r={r} />}
                 </div>
               ))}
             </div>

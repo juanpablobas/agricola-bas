@@ -4,6 +4,7 @@ import { enviarAvisos } from "@/lib/push";
 import { cargarSeguimiento } from "@/lib/seguimiento";
 import { generarRecomendacion, hayClaveIA } from "@/lib/recomendacion";
 import { alertasDe, obtenerClima, ubicacionDelCampo } from "@/lib/clima";
+import { sumaDias } from "@/lib/semana";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
 
   // 3) Plan de labores: los lunes
   if (esLunes) {
-    const { data: plan } = await admin.from("labor_plan").select("id, cuartel_id, labor_tipo_id, fiscalizador_id, estado").eq("semana", hoy).eq("estado", "pendiente");
+    const { data: plan } = await admin.from("labor_registro").select("id, cuartel_id, labor_tipo_id, fiscalizador_id, estado").eq("estado", "programado").gte("fecha", hoy).lte("fecha", sumaDias(hoy, 6));
     const [{ data: labores }, { data: cuarteles }, { data: trabajadores }] = await Promise.all([
       admin.from("labor_tipo").select("id, nombre"),
       admin.from("v_cuartel").select("id, codigo").range(0, 999),
@@ -106,11 +107,11 @@ export async function GET(request: NextRequest) {
     const lista = (plan ?? []) as any[];
 
     if (lista.length === 0) {
-      resumen.sinPlan = await enviarAvisos(admin, gestores, { title: "Plan de la semana", body: "Todavía no hay labores planificadas para esta semana.", url: `/labores/plan?semana=${hoy}` });
+      resumen.sinPlan = await enviarAvisos(admin, gestores, { title: "Plan de la semana", body: "Todavía no hay labores por hacer anotadas para esta semana.", url: "/labores/registrar?estado=programado" });
     } else {
       resumen.plan = await enviarAvisos(admin, gestores, {
         title: "Plan de la semana",
-        body: `${plural(lista.length, "labor pendiente", "labores pendientes")}: ${lista.slice(0, 4).map(texto).join(", ")}${lista.length > 4 ? "…" : ""}.`,
+        body: `${plural(lista.length, "labor por hacer", "labores por hacer")}: ${lista.slice(0, 4).map(texto).join(", ")}${lista.length > 4 ? "…" : ""}.`,
         url: "/labores",
       });
       for (const t of (trabajadores ?? []) as any[]) {
