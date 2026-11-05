@@ -232,7 +232,16 @@ export default async function Pedido({ searchParams }: { searchParams: Promise<{
   const nombreGrupo = especie ?? GRUPOS[g].nombre;
   const textoPedido =
     `Pedido ${nombreGrupo} (${nombrePeriodo}) – Agrícola BAS\n` +
-    (aPedir.length ? aPedir.map((f) => `• ${f.nombre}: ${cant(Math.ceil(f.falta * 10) / 10)} ${f.unidad}`).join("\n") : "Con lo que hay en bodega alcanza.");
+    (aPedir.length
+      ? aPedir
+          .map((f) => {
+            const linea = `• ${f.nombre}: ${cant(Math.ceil(f.falta * 10) / 10)} ${f.unidad}`;
+            // Las opciones del asesor también se cotizan, estén o no elegidas
+            const ops = f.alts.map((a) => `   ó ${a.nombre}: ${cant(Math.ceil(Math.max(a.falta, 0.1) * 10) / 10)} ${a.unidad}${a.propia ? "" : " (dosis por confirmar)"}`);
+            return [linea, ...ops].join("\n");
+          })
+          .join("\n") + (aPedir.some((f) => f.alts.length > 0) ? "\n\n(ó = alternativa del asesor: cotizar también)" : "")
+      : "Con lo que hay en bodega alcanza.");
 
   const chip = (activo: boolean) => `inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-medium transition ${activo ? "border-verde bg-verde text-white" : "border-linea bg-white text-tinta hover:border-verde/40"}`;
   const url = (cambios: Partial<{ g: Grupo; p: Periodo; e: string | null }>) => {
