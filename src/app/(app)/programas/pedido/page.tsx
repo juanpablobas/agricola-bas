@@ -105,6 +105,17 @@ export default async function Pedido({ searchParams }: { searchParams: Promise<{
     return { conDosis, deTexto };
   };
 
+  // Catálogo de bodega: une por nombre las líneas que no quedaron unidas a un producto, y da la unidad si el programa no la trae
+  const { data: catalogo } = await supabase.from("producto").select("id, nombre, unidad").range(0, 1999);
+  const porClave = new Map<string, { id: string; unidad: string | null; n: number }>();
+  for (const x of (catalogo ?? []) as any[]) {
+    const k = clave(x.nombre as string);
+    const prev = porClave.get(k);
+    porClave.set(k, { id: x.id, unidad: x.unidad ?? null, n: (prev?.n ?? 0) + 1 });
+  }
+  const unidadBodega = new Map<string, string | null>(((catalogo ?? []) as any[]).map((x) => [x.id as string, (x.unidad as string | null) ?? null] as [string, string | null]));
+  const idPorClave = new Map<string, string>([...porClave].filter(([, v]) => v.n === 1).map(([k, v]) => [k, v.id] as [string, string]));
+
   const productos = new Map<string, Prod>();
   const vars = new Map<string, Var>();
   const especies = new Set<string>();
@@ -133,7 +144,8 @@ export default async function Pedido({ searchParams }: { searchParams: Promise<{
         const porHa = dosisPorHa(l, litros);
         const qty = porHa * ha;
         if (!(qty > 0)) continue;
-        const unidad = l.unidad ?? "";
+        const pid = l.producto_id ?? idPorClave.get(clave(l.producto)) ?? null;
+        const unidad = l.unidad ?? (pid ? unidadBodega.get(pid) : null) ?? "(unidad por definir)";
         const escala = l.conc_100l !== null && !(l.mojam_programa !== null && l.mojam_programa > 0 && l.mojam_programa < 100);
         if (escala) {
           if (litros) v.litros.add(litros);
@@ -144,8 +156,8 @@ export default async function Pedido({ searchParams }: { searchParams: Promise<{
         }
         const rep = l.repeticiones > 1 ? ` × ${num(l.repeticiones)}` : "";
         const dosisTxt = escala ? `${num(l.conc_100l!, 3)} ${unidad} por 100 L${rep}` : `${num(l.dosis_ha ?? 0, 2)} ${unidad} por ha${rep}`;
-        const kp = `${l.producto_id ?? "n:" + clave(l.producto)}|${unidad}`;
-        const p = productos.get(kp) ?? { nombre: l.producto, nombrePrograma: l.producto, unidad, producto_id: l.producto_id, clave: clave(l.producto), total: 0, porEspecie: new Map<string, number>(), alts: new Map<string, Alt>() };
+        const kp = `${pid ?? "n:" + clave(l.producto)}|${unidad}`;
+        const p = productos.get(kp) ?? { nombre: l.producto, nombrePrograma: l.producto, unidad, producto_id: pid, clave: clave(l.producto), total: 0, porEspecie: new Map<string, number>(), alts: new Map<string, Alt>() };
         p.total += qty;
         // Alternativas: cuánto se necesitaría si en estas aplicaciones se usara la opción en vez del principal
         const ops = opcionesDe(l);
@@ -179,8 +191,6 @@ export default async function Pedido({ searchParams }: { searchParams: Promise<{
 
   // Stock y precio de referencia (neto; se le suma IVA)
   // Las opciones escritas como texto se buscan en la bodega por su nombre
-  const { data: catalogo } = await supabase.from("producto").select("id, nombre").range(0, 1999);
-  const idPorClave = new Map<string, string>(((catalogo ?? []) as any[]).map((x) => [clave(x.nombre as string), x.id as string] as [string, string]));
   for (const p of productos.values()) for (const a of p.alts.values()) if (!a.producto_id) a.producto_id = idPorClave.get(clave(a.nombre)) ?? null;
   const ids = [...new Set([...productos.values()].flatMap((p) => [p.producto_id, ...[...p.alts.values()].map((a) => a.producto_id)]).filter(Boolean))] as string[];
   const [{ data: stocks }, { data: ingresos }] = ids.length
