@@ -8,6 +8,7 @@ import { Icono } from "@/components/Icono";
 import { cargarOpciones } from "./lib";
 import { cambiarEstado } from "./labor-acciones";
 import { ESTADOS, avance, costos, estaAtrasada, nombreUnidad, type EstadoLabor } from "./modelo";
+import { aplicacionesPrograma, SITUACION_APP, type AppPrograma } from "./programa";
 
 export const metadata = { title: "Labores" };
 
@@ -40,10 +41,12 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
   else if (vista === "mes") { desde = lunesDe(`${mes}-01`); hasta = sumaDias(lunesDe(finDeMes(mes)), 6); }
   else { desde = esFecha(p.desde) ? p.desde : `${hoy.slice(0, 7)}-01`; hasta = esFecha(p.hasta) ? p.hasta : finDeMes(hoy.slice(0, 7)); }
 
-  const [op, { data: delPeriodo }, { data: atrasadasTodas }] = await Promise.all([
+  const verPrograma = perfil.rol !== "operario";
+  const [op, { data: delPeriodo }, { data: atrasadasTodas }, programa] = await Promise.all([
     cargarOpciones(supabase),
     supabase.from("labor_registro").select(CAMPOS).gte("fecha", desde).lte("fecha", hasta).order("fecha").order("creado_en").range(0, 1999),
     supabase.from("labor_registro").select(CAMPOS).in("estado", ["programado", "reprogramado"]).lt("fecha", hoy).order("fecha").range(0, 999),
+    verPrograma ? aplicacionesPrograma(supabase, hoy).catch(() => [] as AppPrograma[]) : Promise.resolve([] as AppPrograma[]),
   ]);
   const ids = [...new Set([...((delPeriodo ?? []) as any[]), ...((atrasadasTodas ?? []) as any[])].map((l) => l.id))];
   const { data: lt } = p.trabajador && ids.length ? await supabase.from("labor_trabajador").select("labor_id, trabajador_id").in("labor_id", ids) : { data: [] as any[] };
@@ -62,6 +65,49 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
   const labores = ((delPeriodo ?? []) as any[]).filter(pasa);
   const atrasadas = ((atrasadasTodas ?? []) as any[]).filter(pasa);
   const filtrosActivos = ["estado", "especie", "variedad", "cuartel", "trabajador", "contratista"].filter((k) => (p as any)[k]);
+
+  // Aplicaciones del programa sanitario (de los asesores): referencia aparte, se registran en Programas
+  const variedadFiltro = p.variedad ?? (p.cuartel ? op.variedadDeCuartel.get(p.cuartel) ?? null : null);
+  const appsFiltradas = programa.filter((a) =>
+    (!variedadFiltro || a.variedades.some((v) => v.id === variedadFiltro)) &&
+    (!p.especie || a.variedades.some((v) => op.especieDeVariedad.get(v.id) === p.especie)) &&
+    !p.trabajador && !p.contratista && (!p.estado || p.estado === "atrasada"));
+  const mesesRango = new Set<string>();
+  for (let m = desde.slice(0, 7); m <= hasta.slice(0, 7); m = mesMas(m, 1)) mesesRango.add(m);
+  const appsPeriodo = appsFiltradas.filter((a) =>
+    (p.estado !== "atrasada" || a.situacion === "atrasada") &&
+    (a.fecha ? a.fecha >= desde && a.fecha <= hasta : !!a.mesIso && mesesRango.has(a.mesIso)) || (vista === "panel" && a.situacion === "atrasada" && desde <= hoy && hasta >= hoy));
+  const appsDelDia = (d: string) => appsPeriodo.filter((a) => a.fecha === d);
+  const appsSinDia = (mesIso: string) => appsPeriodo.filter((a) => !a.fecha && a.mesIso === mesIso);
+  const enlaceApp = (a: AppPrograma) => `/programas/aplicar?v=${a.variedades[0]?.id}&a=${a.app_id}`;
+  const ChipApp = ({ a }: { a: AppPrograma }) => (
+    <Link href={`/programas/${a.programa_id}`} title={`${a.programa} · ${a.titulo} · ${a.variedades.map((v) => v.nombre).join(", ")} · ${SITUACION_APP[a.situacion].texto}`}
+      className={`flex items-center gap-1 truncate rounded-md border border-dashed px-1.5 py-1 text-[11px] font-medium leading-tight ${a.situacion === "atrasada" ? "border-alerta/50 text-alerta" : "border-agua/50 text-agua"}`}>
+      <Icono nombre="programas" className="size-3 shrink-0" /><span className="truncate">{a.programa.split(" ")[0]} · {a.orden}</span>
+    </Link>
+  );
+  const FilaApp = ({ a }: { a: AppPrograma }) => (
+    <li className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-2 font-medium"><Icono nombre="programas" className="size-4 shrink-0 text-agua" />{a.programa} · {a.titulo}</p>
+        <p className="text-sm text-tinta-suave">{a.fecha && a.aprox === "postergada" ? `Postergada al ${corta(a.fecha)}` : a.aprox} · {a.variedades.map((v) => v.nombre).join(", ")}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`pastilla ${SITUACION_APP[a.situacion].clase}`}>{SITUACION_APP[a.situacion].texto}</span>
+        {edita && <Link href={enlaceApp(a)} className="boton-secundario min-h-9 px-3 py-1.5">Registrar</Link>}
+      </div>
+    </li>
+  );
+  const BandaProgramaMes = ({ mesIso }: { mesIso: string }) => {
+    const sinDia = appsSinDia(mesIso);
+    if (!sinDia.length) return null;
+    return (
+      <div className="mb-3 rounded-xl border border-dashed border-agua/50 bg-agua-claro/40 p-3">
+        <p className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-agua"><Icono nombre="programas" className="size-4" />Programa sanitario: en {MESES[Number(mesIso.slice(5, 7)) - 1]} también tocan (sin día fijo)</p>
+        <div className="flex flex-wrap gap-1.5">{sinDia.map((a) => <ChipApp key={a.app_id} a={a} />)}</div>
+      </div>
+    );
+  };
 
   // Indicadores del período
   const cuenta = (e: EstadoLabor) => labores.filter((l) => l.estado === e).length;
@@ -245,6 +291,16 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
             </section>
           )}
 
+          {appsPeriodo.length > 0 && (
+            <details className="tarjeta group mb-4 overflow-hidden border-dashed border-agua/40" open>
+              <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 font-semibold">
+                <Icono nombre="programas" className="size-4 text-agua" />Programa sanitario de los asesores<span className="font-normal text-tinta-suave">({appsPeriodo.length})</span>
+                <Icono nombre="volver" className="ml-auto size-4 -rotate-90 text-tinta-suave transition group-open:rotate-90" />
+              </summary>
+              <p className="border-t border-linea bg-agua-claro/30 px-4 py-2 text-xs text-tinta-suave">Aplicaciones que tocan según el programa, para que sepas cuándo vienen. No son labores: se registran en Programas con “Registrar”.</p>
+              <ul className="divide-y divide-linea border-t border-linea">{appsPeriodo.map((a) => <FilaApp key={a.app_id} a={a} />)}</ul>
+            </details>
+          )}
           {(!p.estado || p.estado === "atrasada") && <Lista titulo="Atrasadas" punto="bg-alerta" items={atrasadas} acciones vacio={p.estado === "atrasada" ? "No hay labores atrasadas." : undefined} />}
           {(!p.estado || p.estado === "en_ejecucion") && <Lista titulo="En ejecución" punto={ESTADOS.en_ejecucion.punto} items={labores.filter((l) => l.estado === "en_ejecucion")} />}
           {(!p.estado || p.estado === "programado" || p.estado === "reprogramado") && (
@@ -272,9 +328,11 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
             </div>
             <Link href={qs({ semana: sumaDias(semana, 7) })} className="boton-secundario px-3" aria-label="Semana siguiente">→</Link>
           </div>
+          {[...new Set([semana.slice(0, 7), sumaDias(semana, 6).slice(0, 7)])].map((m) => <BandaProgramaMes key={m} mesIso={m} />)}
           <div className="grid gap-2 lg:grid-cols-7">
             {Array.from({ length: 7 }, (_, i) => sumaDias(semana, i)).map((d) => {
               const delDia = labores.filter((l) => l.fecha === d);
+              const progDia = appsDelDia(d);
               return (
                 <section key={d} className={`tarjeta flex flex-col overflow-hidden lg:min-h-48 ${d === hoy ? "ring-2 ring-verde" : ""}`}>
                   <div className={`flex items-center justify-between px-3 py-2 text-sm ${d === hoy ? "bg-verde text-white" : "bg-papel/70"}`}>
@@ -282,13 +340,14 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
                     {edita && <Link href={`/labores/registrar?fecha=${d}`} className={`grid size-7 place-items-center rounded-md ${d === hoy ? "hover:bg-white/15" : "hover:bg-white"}`} aria-label={`Agregar labor el ${corta(d)}`}><Icono nombre="mas" className="size-4" /></Link>}
                   </div>
                   <div className="flex flex-1 flex-col gap-1 p-2">
-                    {delDia.length === 0 ? <p className="px-1 text-xs text-tinta-suave lg:hidden">Sin labores</p> : delDia.map((l) => <Chip key={l.id} l={l} />)}
+                    {delDia.length === 0 && progDia.length === 0 ? <p className="px-1 text-xs text-tinta-suave lg:hidden">Sin labores</p> : delDia.map((l) => <Chip key={l.id} l={l} />)}
+                    {progDia.map((a) => <ChipApp key={a.app_id} a={a} />)}
                   </div>
                 </section>
               );
             })}
           </div>
-          <p className="mt-2 text-xs text-tinta-suave">Toca una labor para verla, confirmarla o reprogramarla. Con el + agregas una labor ese día.</p>
+          <p className="mt-2 text-xs text-tinta-suave">Toca una labor para verla, confirmarla o reprogramarla. Con el + agregas una labor ese día. Lo punteado azul son aplicaciones del programa de los asesores (fecha aproximada).</p>
         </>
       )}
 
@@ -302,6 +361,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
             </div>
             <Link href={qs({ mes: mesMas(mes, 1) })} className="boton-secundario px-3" aria-label="Mes siguiente">→</Link>
           </div>
+          <BandaProgramaMes mesIso={mes} />
           <div className="tarjeta overflow-hidden">
             <div className="grid grid-cols-7 border-b border-linea bg-papel/70 text-center text-[11px] font-semibold uppercase tracking-wide text-tinta-suave">
               {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((d) => <div key={d} className="py-1.5">{d}</div>)}
@@ -309,6 +369,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
             <div className="grid grid-cols-7">
               {Array.from({ length: Math.round((Date.parse(hasta) - Date.parse(desde)) / 864e5) + 1 }, (_, i) => sumaDias(desde, i)).map((d) => {
                 const delDia = labores.filter((l) => l.fecha === d);
+                const progDia = appsDelDia(d);
                 const fuera = d.slice(0, 7) !== mes;
                 return (
                   <div key={d} className={`min-h-16 border-b border-r border-linea p-1 sm:min-h-24 ${fuera ? "bg-papel/40 text-tinta-suave/60" : ""}`}>
@@ -317,9 +378,11 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
                     <div className="flex flex-wrap gap-0.5 sm:hidden">
                       {delDia.slice(0, 6).map((l) => <Link key={l.id} href={`/labores/${l.id}`} className={`size-2.5 rounded-full ${estaAtrasada(l, hoy) ? "bg-alerta" : ESTADOS[l.estado as EstadoLabor].punto}`} aria-label={op.nombres.labor.get(l.labor_tipo_id)} />)}
                       {delDia.length > 6 && <span className="text-[9px] leading-none">+{delDia.length - 6}</span>}
+                      {progDia.map((a) => <Link key={a.app_id} href={`/programas/${a.programa_id}`} className={`size-2.5 rounded-full border-2 border-dashed ${a.situacion === "atrasada" ? "border-alerta" : "border-agua"}`} aria-label={`${a.programa} aplicación ${a.orden}`} />)}
                     </div>
                     <div className="hidden flex-col gap-0.5 sm:flex">
                       {delDia.slice(0, 3).map((l) => <Chip key={l.id} l={l} />)}
+                      {progDia.slice(0, 2).map((a) => <ChipApp key={a.app_id} a={a} />)}
                       {delDia.length > 3 && <Link href={qs({ vista: "semana", semana: d, mes: undefined })} className="px-1 text-[11px] text-tinta-suave hover:underline">+{delDia.length - 3} más</Link>}
                     </div>
                   </div>
@@ -330,6 +393,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
           <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-tinta-suave">
             {(Object.keys(ESTADOS) as EstadoLabor[]).map((k) => <li key={k} className="flex items-center gap-1.5"><span className={`size-2.5 rounded-full ${ESTADOS[k].punto}`} />{ESTADOS[k].texto}</li>)}
             <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-alerta" />Atrasada</li>
+            <li className="flex items-center gap-1.5"><span className="size-2.5 rounded-full border-2 border-dashed border-agua" />Programa sanitario</li>
           </ul>
         </>
       )}
