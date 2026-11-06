@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
 
   // 3) Plan de labores: los lunes
   if (esLunes) {
-    const { data: plan } = await admin.from("labor_registro").select("id, cuartel_id, labor_tipo_id, fiscalizador_id, estado").eq("estado", "programado").gte("fecha", hoy).lte("fecha", sumaDias(hoy, 6));
+    const { data: plan } = await admin.from("labor_registro").select("id, cuartel_id, labor_tipo_id, fiscalizador_id, estado").in("estado", ["programado", "reprogramado"]).gte("fecha", hoy).lte("fecha", sumaDias(hoy, 6));
     const [{ data: labores }, { data: cuarteles }, { data: trabajadores }] = await Promise.all([
       admin.from("labor_tipo").select("id, nombre"),
       admin.from("v_cuartel").select("id, codigo").range(0, 999),

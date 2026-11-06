@@ -90,10 +90,10 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
           const [{ data: plan }, { count }, { count: porConfirmar }] = await Promise.all([
             supabase.from("labor_registro").select("estado").gte("fecha", semana).lte("fecha", sumaDias(semana, 6)),
             supabase.from("labor_registro").select("id", { count: "exact", head: true }).eq("estado", "realizado").gte("fecha", semana).lte("fecha", sumaDias(semana, 6)),
-            supabase.from("labor_registro").select("id", { count: "exact", head: true }).eq("estado", "programado").lte("fecha", hoy),
+            supabase.from("labor_registro").select("id", { count: "exact", head: true }).in("estado", ["programado", "reprogramado"]).lt("fecha", hoy),
           ]);
           const p = (plan ?? []) as { estado: string }[];
-          return { planificadas: p.filter((x) => x.estado === "programado").length, hechas: count ?? 0, porConfirmar: porConfirmar ?? 0 };
+          return { planificadas: p.filter((x) => x.estado === "programado" || x.estado === "reprogramado" || x.estado === "en_ejecucion").length, hechas: count ?? 0, porConfirmar: porConfirmar ?? 0 };
         }, null)
       : Promise.resolve(null),
     veFinanzas && temporada
@@ -145,7 +145,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
 
   const atencion: { texto: React.ReactNode; href?: string; nivel: "alto" | "medio" }[] = [
     ...alertasClima.map((a) => ({ texto: <><strong>{a.fecha === hoy ? "Hoy" : "Mañana"}:</strong> {a.titulo}</>, href: "/clima", nivel: a.nivel })),
-    ...(labores && labores.porConfirmar > 0 ? [{ texto: <>Hay <strong>{labores.porConfirmar}</strong> {labores.porConfirmar === 1 ? "labor por hacer" : "labores por hacer"} cuyo día ya llegó: confirma si se hizo.</>, href: "/labores", nivel: "medio" as const }] : []),
+    ...(labores && labores.porConfirmar > 0 ? [{ texto: <>Hay <strong>{labores.porConfirmar}</strong> {labores.porConfirmar === 1 ? "labor atrasada" : "labores atrasadas"}: confirma si se hicieron o reprográmalas.</>, href: "/labores", nivel: "medio" as const }] : []),
     ...(atrasadas > 0 ? [{ texto: <>Hay <strong>{atrasadas}</strong> {atrasadas === 1 ? "aplicación atrasada" : "aplicaciones atrasadas"}: regístrala o posponla.</>, href: "/programas", nivel: "alto" as const }] : []),
   ];
 

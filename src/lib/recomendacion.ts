@@ -38,11 +38,11 @@ async function armarContexto(admin: SupabaseClient, hoy: string) {
 
   const lunes = lunesDe(hoy);
   const [{ data: plan }, { data: tipos }] = await Promise.all([
-    admin.from("labor_registro").select("labor_tipo_id, estado").eq("estado", "programado").gte("fecha", lunes).lte("fecha", sumaDias(lunes, 6)),
+    admin.from("labor_registro").select("labor_tipo_id, estado").in("estado", ["programado", "reprogramado", "en_ejecucion"]).gte("fecha", lunes).lte("fecha", sumaDias(lunes, 6)),
     admin.from("labor_tipo").select("id, nombre"),
   ]);
   const nl = new Map(((tipos ?? []) as any[]).map((t) => [t.id, t.nombre as string]));
-  const pend = ((plan ?? []) as any[]).filter((p) => p.estado === "programado").map((p) => nl.get(p.labor_tipo_id) ?? "Labor");
+  const pend = ((plan ?? []) as any[]).filter((p) => p.estado !== "realizado").map((p) => nl.get(p.labor_tipo_id) ?? "Labor");
   partes.push(pend.length ? `Labores por hacer esta semana: ${[...new Set(pend)].join(", ")}.` : "Labores por hacer esta semana: no hay ninguna anotada.");
   return partes.join("\n");
 }
