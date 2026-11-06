@@ -69,5 +69,6 @@ export async function marcarAplicacionRealizada(_: EstadoAplicacion, form: FormD
   revalidatePath("/inventario", "layout");
   revalidatePath("/labores", "layout");
   revalidatePath("/");
-  redirect(`/labores?ok=${descontar ? "aplicacion_descontada" : "aplicacion"}`);
+  const volver = form.get("volver") === "/programas" ? "/programas" : "/labores";
+  redirect(`${volver}?ok=${descontar ? "aplicacion_descontada" : "aplicacion"}`);
 }

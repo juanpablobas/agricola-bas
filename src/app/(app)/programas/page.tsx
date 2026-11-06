@@ -57,6 +57,8 @@ export default async function Programas({ searchParams }: { searchParams: Promis
       {q.ok === "postergada" && <div className="mb-3"><Aviso tipo="ok">Aplicación postergada. Volverá a aparecer como atrasada si pasa la nueva fecha sin registrarla.</Aviso></div>}
       {q.ok === "omitida" && <div className="mb-3"><Aviso tipo="ok">Aplicación marcada como “no se hará”. Ya no cuenta en el pedido de productos.</Aviso></div>}
       {q.ok === "reactivada" && <div className="mb-3"><Aviso tipo="ok">La aplicación volvió a pendiente.</Aviso></div>}
+      {q.ok === "aplicacion" && <div className="mb-3"><Aviso tipo="ok">Aplicación registrada como realizada, sin descontar de bodega.</Aviso></div>}
+      {q.ok === "aplicacion_descontada" && <div className="mb-3"><Aviso tipo="ok">Aplicación registrada como realizada y productos descontados de bodega.</Aviso></div>}
       {q.error === "fecha" && <div className="mb-3"><Aviso tipo="error">Indica una nueva fecha que sea hoy o una futura.</Aviso></div>}
       {q.error === "1" && <div className="mb-3"><Aviso tipo="error">No se pudo guardar. Intenta de nuevo.</Aviso></div>}
 
@@ -78,8 +80,8 @@ export default async function Programas({ searchParams }: { searchParams: Promis
                 </div>
                 <p className="mt-1 text-sm text-tinta-suave">Falta en: {g.map((v) => v.variedad).join(", ")}{x.motivo ? ` · se postergó por ${x.motivo.toLowerCase()}` : ""}</p>
                 {puedeGestionar && (
-                  <div className="mt-2 flex flex-wrap items-start gap-4 text-sm">
-                    <Link href={`/programas/aplicar?v=${g[0].variedad_id}&a=${x.app_id}`} className="font-medium text-verde hover:underline">Registrar</Link>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                    <Link href={`/labores/aplicacion/${x.app_id}?desde=programas`} className="boton min-h-9 px-3 py-1.5"><Icono nombre="ok" className="size-4" />Realizada</Link>
                     <a href={enlaceWhatsapp(null, `Recordatorio Agrícola BAS: ${x.situacion === "atrasada" ? "está atrasada" : "toca"} la aplicación ${x.orden}. ${x.titulo} (${x.programa}) en ${g.map((v) => v.variedad).join(", ")}.${x.nueva_fecha ? ` Quedó para el ${fecha(x.nueva_fecha)}.` : ""} Avísame cuando se haga para registrarla.`)} target="_blank" rel="noopener noreferrer" className="hover:underline">Avisar por WhatsApp</a>
                     <details>
                       <summary className="cursor-pointer hover:underline">No se pudo / postergar</summary>

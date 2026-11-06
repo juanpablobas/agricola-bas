@@ -9,7 +9,7 @@ import type { VariedadCalc } from "../../aplicacion";
 type Prod = { linea_id: string; nombre: string; unidad: string; producto_id: string | null; enBodega: string | null; stock: number | null; porVariedad: Record<string, number> };
 const n = (v: number, d = 2) => v.toLocaleString("es-CL", { maximumFractionDigits: d });
 
-export function FormAplicacion({ appId, hoy, variedades, productos, enlaceDetalle }: { appId: string; hoy: string; variedades: VariedadCalc[]; productos: Prod[]; enlaceDetalle: string }) {
+export function FormAplicacion({ appId, hoy, variedades, productos, enlaceDetalle, volver = "/labores" }: { appId: string; hoy: string; variedades: VariedadCalc[]; productos: Prod[]; enlaceDetalle: string; volver?: string }) {
   const [estado, enviar] = useActionState<EstadoAplicacion, FormData>(marcarAplicacionRealizada, null);
   const [sel, setSel] = useState<Set<string>>(new Set(variedades.map((v) => v.id)));
   const [descontar, setDescontar] = useState<"si" | "no" | null>(null);
@@ -20,6 +20,7 @@ export function FormAplicacion({ appId, hoy, variedades, productos, enlaceDetall
   return (
     <form action={enviar} className="flex flex-col gap-5">
       <input type="hidden" name="app" value={appId} />
+      <input type="hidden" name="volver" value={volver} />
       {descontar && <input type="hidden" name="descontar" value={descontar} />}
       {estado?.error && <Aviso tipo="error">{estado.error}</Aviso>}
 
