@@ -24,9 +24,12 @@ export async function actualizarSesion(request: NextRequest) {
     },
   );
 
+  // Solo lee la sesión guardada en la cookie (y la renueva si venció): no hace un viaje a Supabase en cada clic.
+  // La verificación segura del usuario la hace cada página con getUser().
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   const ruta = request.nextUrl.pathname;
   const esPublica = RUTAS_PUBLICAS.some((r) => ruta.startsWith(r));

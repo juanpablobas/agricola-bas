@@ -1,5 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import type { Rol } from "@/lib/etiquetas";
 
@@ -12,7 +13,7 @@ export type Perfil = {
 };
 
 /** Usuario conectado y su perfil. Redirige al ingreso si no hay sesión o el perfil está inactivo. */
-export async function obtenerSesion() {
+export const obtenerSesion = cache(async function obtenerSesion() {
   const supabase = await crearClienteServidor();
   const {
     data: { user },
@@ -30,7 +31,7 @@ export async function obtenerSesion() {
     redirect("/login?error=inactivo");
   }
   return { supabase, user, perfil };
-}
+});
 
 /** Igual que obtenerSesion, pero exige uno de los roles indicados. */
 export async function exigirRol(...roles: Rol[]) {
