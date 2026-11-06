@@ -79,7 +79,6 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
     (a.fecha ? a.fecha >= desde && a.fecha <= hasta : !!a.mesIso && mesesRango.has(a.mesIso)) || (vista === "panel" && a.situacion === "atrasada" && desde <= hoy && hasta >= hoy));
   const appsDelDia = (d: string) => appsPeriodo.filter((a) => a.fecha === d);
   const appsSinDia = (mesIso: string) => appsPeriodo.filter((a) => !a.fecha && a.mesIso === mesIso);
-  const enlaceApp = (a: AppPrograma) => `/programas/aplicar?v=${a.variedades[0]?.id}&a=${a.app_id}`;
   const ChipApp = ({ a }: { a: AppPrograma }) => (
     <Link href={`/programas/${a.programa_id}`} title={`${a.programa} · ${a.titulo} · ${a.variedades.map((v) => v.nombre).join(", ")} · ${SITUACION_APP[a.situacion].texto}`}
       className={`flex items-center gap-1 truncate rounded-md border border-dashed px-1.5 py-1 text-[11px] font-medium leading-tight ${a.situacion === "atrasada" ? "border-alerta/50 text-alerta" : "border-agua/50 text-agua"}`}>
@@ -94,7 +93,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <span className={`pastilla ${SITUACION_APP[a.situacion].clase}`}>{SITUACION_APP[a.situacion].texto}</span>
-        {edita && <Link href={enlaceApp(a)} className="boton-secundario min-h-9 px-3 py-1.5">Registrar</Link>}
+        {edita && <Link href={`/labores/aplicacion/${a.app_id}`} className="boton min-h-9 px-3 py-1.5"><Icono nombre="ok" className="size-4" />Realizada</Link>}
       </div>
     </li>
   );
@@ -212,6 +211,8 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
         }
       />
       {p.ok === "borrada" && <div className="mb-4"><Aviso tipo="ok">Labor borrada.</Aviso></div>}
+      {p.ok === "aplicacion" && <div className="mb-4"><Aviso tipo="ok">Aplicación registrada como realizada, sin descontar de bodega.</Aviso></div>}
+      {p.ok === "aplicacion_descontada" && <div className="mb-4"><Aviso tipo="ok">Aplicación registrada como realizada y productos descontados de bodega.</Aviso></div>}
 
       <div className="mb-3 flex gap-1 rounded-xl bg-papel p-1 ring-1 ring-linea sm:inline-flex">
         {tab("panel", "Panel")}{tab("semana", "Semana")}{tab("mes", "Mes")}
@@ -297,7 +298,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
                 <Icono nombre="programas" className="size-4 text-agua" />Programa sanitario de los asesores<span className="font-normal text-tinta-suave">({appsPeriodo.length})</span>
                 <Icono nombre="volver" className="ml-auto size-4 -rotate-90 text-tinta-suave transition group-open:rotate-90" />
               </summary>
-              <p className="border-t border-linea bg-agua-claro/30 px-4 py-2 text-xs text-tinta-suave">Aplicaciones que tocan según el programa, para que sepas cuándo vienen. No son labores: se registran en Programas con “Registrar”.</p>
+              <p className="border-t border-linea bg-agua-claro/30 px-4 py-2 text-xs text-tinta-suave">Aplicaciones que tocan según el programa, para que sepas cuándo vienen. No son labores: cuando se hagan, toca “Realizada” y elige si se descuentan los productos de bodega.</p>
               <ul className="divide-y divide-linea border-t border-linea">{appsPeriodo.map((a) => <FilaApp key={a.app_id} a={a} />)}</ul>
             </details>
           )}
