@@ -1,7 +1,7 @@
 // Pronóstico del tiempo (Open-Meteo, gratis y sin clave) y alertas simples para el trabajo del campo.
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type Dia = { fecha: string; tmin: number; tmax: number; lluvia: number; probLluvia: number | null; viento: number; rafaga: number };
+export type Dia = { fecha: string; tmin: number; tmax: number; lluvia: number; probLluvia: number | null; viento: number; rafaga: number; et0?: number | null };
 export type Actual = { temp: number; humedad: number | null; viento: number; lluvia: number } | null;
 export type Ubicacion = { lat: number; lng: number; origen: "campo" | "comuna"; nombre: string };
 export type Alerta = { tipo: "helada" | "lluvia" | "viento" | "calor"; nivel: "alto" | "medio"; fecha: string; titulo: string; detalle: string };
@@ -28,7 +28,7 @@ export async function obtenerClima(u: Ubicacion): Promise<{ actual: Actual; dias
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${u.lat}&longitude=${u.lng}` +
     `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation` +
-    `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max` +
+    `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,et0_fao_evapotranspiration` +
     `&past_days=3&forecast_days=7&wind_speed_unit=kmh&timezone=America%2FSantiago`;
   try {
     const r = await fetch(url, { next: { revalidate: 1800 } });
@@ -43,6 +43,7 @@ export async function obtenerClima(u: Ubicacion): Promise<{ actual: Actual; dias
       probLluvia: d.precipitation_probability_max?.[i] ?? null,
       viento: d.wind_speed_10m_max[i] ?? 0,
       rafaga: d.wind_gusts_10m_max[i] ?? 0,
+      et0: d.et0_fao_evapotranspiration?.[i] ?? null,
     }));
     const c = j.current;
     return { actual: c ? { temp: c.temperature_2m, humedad: c.relative_humidity_2m ?? null, viento: c.wind_speed_10m, lluvia: c.precipitation ?? 0 } : null, dias };
