@@ -4,8 +4,5 @@
       "path": "/api/cron/avisos",
       "schedule": "0 10 * * *"
     }
-  ],
-  "regions": [
-    "cle1"
   ]
 }
