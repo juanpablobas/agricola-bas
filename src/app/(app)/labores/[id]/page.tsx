@@ -13,7 +13,7 @@ import { cargarOpciones } from "../lib";
 import { enlaceWhatsapp, telefonoChile } from "@/lib/whatsapp";
 import { ESTADOS, MOTIVOS, PAGOS, avance, costos, estaAtrasada, nombreCobro, nombreMotivo, nombreUnidad, type EstadoLabor } from "../modelo";
 import {
-  actualizarPago, agregarInsumo, quitarInsumo, borrarArchivoLabor, borrarAvance, borrarLabor, cambiarEstado, comentarFiscalizador, registrarArchivoLabor, registrarAvance, reprogramar,
+  actualizarPago, borrarArchivoLabor, borrarAvance, borrarLabor, cambiarEstado, comentarFiscalizador, registrarArchivoLabor, registrarAvance, reprogramar,
 } from "../labor-acciones";
 
 export const metadata = { title: "Labor" };
@@ -21,14 +21,11 @@ export const metadata = { title: "Labor" };
 const OK: Record<string, string> = {
   creada: "Labor guardada.", editada: "Cambios guardados.", estado: "Estado actualizado.", reprogramada: "Labor reprogramada. La fecha original queda guardada.",
   avance: "Avance registrado.", avance_completo: "Avance registrado: ya se completó lo planificado. Si terminó, márcala como realizada.",
-  pago: "Pago actualizado.", comentario: "Comentario guardado.", insumo: "Insumo agregado.", insumo_quitado: "Insumo quitado. Si se había descontado, volvió a la bodega.",
+  pago: "Pago actualizado.", comentario: "Comentario guardado.",
 };
 const ERROR: Record<string, string> = {
   reprogramar: "Para reprogramar indica la nueva fecha y el motivo.",
   avance: "Revisa el avance: una cantidad mayor a cero y una fecha que no sea futura.",
-  insumo: "Revisa el insumo: elige un producto y una cantidad mayor a cero.",
-  insumo_ha: "Para calcular por hectárea, la labor necesita una superficie (cuartel, variedad o cantidad en hectáreas).",
-  insumo_quitar: "No se pudo devolver el producto a bodega. Pide al administrador que lo quite.",
 };
 
 function Dato({ t, children }: { t: string; children: React.ReactNode }) {
@@ -40,7 +37,7 @@ function Dato({ t, children }: { t: string; children: React.ReactNode }) {
   );
 }
 
-export default async function Labor({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string; sinstock?: string }> }) {
+export default async function Labor({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
   const { id } = await params;
   const q = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
@@ -51,15 +48,13 @@ export default async function Labor({ params, searchParams }: { params: Promise<
 
   const { data: l } = await supabase.from("labor_registro").select("*").eq("id", id).maybeSingle();
   if (!l) notFound();
-  const [op, { data: trab }, { data: avances }, { data: hist }, { data: archivos }, { data: usuarios }, { data: insumos }, { data: bodega }] = await Promise.all([
+  const [op, { data: trab }, { data: avances }, { data: hist }, { data: archivos }, { data: usuarios }] = await Promise.all([
     cargarOpciones(supabase, { cuadrilla: l.cuadrilla_id, labor: l.labor_tipo_id, fiscalizador: l.fiscalizador_id }),
     supabase.from("labor_trabajador").select("trabajador_id").eq("labor_id", id),
     supabase.from("labor_avance").select("id, fecha, cantidad, observacion, creado_por").eq("labor_id", id).order("fecha", { ascending: false }),
     supabase.from("labor_historial").select("*").eq("labor_id", id).order("creado_en", { ascending: false }),
     supabase.from("archivo").select("id, ruta, nombre, mime, bytes, creado_en, subido_por").eq("entidad", "labor").eq("entidad_id", id).order("creado_en", { ascending: false }),
     supabase.from("perfil").select("id, nombre, email"),
-    supabase.from("labor_insumo").select("id, cantidad, costo_unitario, descontar, mov_id, observacion, producto(id, nombre, unidad)").eq("labor_id", id).order("creado_en"),
-    supabase.from("v_stock").select("producto_id, nombre, unidad, clasificacion, stock").gt("stock", 0).order("nombre").range(0, 999),
   ]);
   const usuario = new Map(((usuarios ?? []) as any[]).map((u) => [u.id as string, (u.nombre || u.email) as string]));
   const rutas = ((archivos ?? []) as any[]).map((a) => a.ruta);
@@ -75,13 +70,6 @@ export default async function Labor({ params, searchParams }: { params: Promise<
 
   const hoy = hoyChile();
   const estado = l.estado as EstadoLabor;
-  // Superficie de la labor, para calcular insumos por hectárea
-  const haLabor = l.unidad_cantidad === "ha" && l.cantidad_plan ? Number(l.cantidad_plan)
-    : l.cuartel_id ? op.cuarteles.find((c) => c.id === l.cuartel_id)?.ha ?? null
-    : l.variedad_id ? op.variedades.find((v) => v.id === `v:${l.variedad_id}`)?.ha ?? null : null;
-  const listaInsumos = (insumos ?? []) as any[];
-  const porClase = new Map<string, any[]>();
-  for (const b of (bodega ?? []) as any[]) porClase.set(b.clasificacion ?? "Otros", [...(porClase.get(b.clasificacion ?? "Otros") ?? []), b]);
   const e = ESTADOS[estado];
   const atrasada = estaAtrasada(l, hoy);
   const pct = avance(l);
@@ -228,76 +216,6 @@ export default async function Labor({ params, searchParams }: { params: Promise<
                 </div>
               );
             })()}
-          </section>
-
-          {/* Insumos de bodega */}
-          <section id="insumos" className="tarjeta scroll-mt-20 p-4">
-            <h2 className="mb-1 font-semibold">Insumos de bodega</h2>
-            <p className="mb-3 text-sm text-tinta-suave">Herbicida, pasta de poda u otro insumo usado en esta labor. {pendiente ? "Como está pendiente, se descuenta de bodega cuando la marques como empezada o terminada." : "Se descuenta de bodega al agregarlo."}</p>
-            {q.sinstock && <div className="mb-3"><Aviso tipo="error">No alcanzó el stock de {q.sinstock}: quedó sin descontar. Revisa la bodega o la cantidad.</Aviso></div>}
-            {listaInsumos.length > 0 && (
-              <ul className="mb-3 divide-y divide-linea rounded-xl border border-linea">
-                {listaInsumos.map((x) => (
-                  <li key={x.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium">{x.producto?.nombre}</span>
-                      <span className="block text-sm text-tinta-suave">
-                        {Number(x.cantidad).toLocaleString("es-CL", { maximumFractionDigits: 3 })} {x.producto?.unidad ?? ""}
-                        {veMonto && x.costo_unitario != null && ` · ${clp(Number(x.cantidad) * Number(x.costo_unitario))}`}
-                        {x.observacion ? ` · ${x.observacion}` : ""}
-                      </span>
-                    </span>
-                    <span className={`pastilla ${!x.descontar ? "bg-papel text-tinta-suave" : x.mov_id ? "bg-verde-claro text-verde-oscuro" : "bg-ambar-claro text-ambar"}`}>
-                      {!x.descontar ? "No se descuenta" : x.mov_id ? "Descontado de bodega" : "Se descuenta al hacerse"}
-                    </span>
-                    {edita && (
-                      <form action={quitarInsumo}>
-                        <input type="hidden" name="id" value={id} /><input type="hidden" name="insumo" value={x.id} />
-                        <BotonBorrar pregunta={x.mov_id ? "¿Quitar este insumo? El producto vuelve a la bodega." : "¿Quitar este insumo?"} className="text-sm text-alerta hover:underline">Quitar</BotonBorrar>
-                      </form>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {edita && (
-              <details className="rounded-xl border border-linea" open={listaInsumos.length === 0}>
-                <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium"><Icono nombre="mas" className="size-4" />Agregar insumo</summary>
-                <form action={agregarInsumo} className="grid gap-3 border-t border-linea p-3 sm:grid-cols-6">
-                  <input type="hidden" name="id" value={id} />
-                  {haLabor ? <input type="hidden" name="ha" value={haLabor} /> : null}
-                  <div className="sm:col-span-3">
-                    <label htmlFor="ins-prod" className="etiqueta-campo">Producto</label>
-                    <select id="ins-prod" name="producto" required defaultValue="" className="entrada">
-                      <option value="" disabled>Elegir…</option>
-                      {[...porClase].map(([cl, ps]) => (
-                        <optgroup key={cl} label={cl}>{ps.map((b) => <option key={b.producto_id} value={b.producto_id}>{b.nombre} · hay {num(Number(b.stock), 2)} {b.unidad ?? ""}</option>)}</optgroup>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="sm:col-span-1">
-                    <label htmlFor="ins-cant" className="etiqueta-campo">Cantidad</label>
-                    <input id="ins-cant" name="cantidad" required inputMode="decimal" className="entrada" placeholder="Ej: 2,5" />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label htmlFor="ins-modo" className="etiqueta-campo">Es</label>
-                    <select id="ins-modo" name="por_ha" defaultValue="0" className="entrada">
-                      <option value="0">Total usado</option>
-                      {haLabor ? <option value="1">Por hectárea (× {num(haLabor, 2)} ha)</option> : null}
-                    </select>
-                  </div>
-                  <div className="sm:col-span-4">
-                    <label htmlFor="ins-obs" className="etiqueta-campo">Observación (opcional)</label>
-                    <input id="ins-obs" name="observacion" className="entrada" placeholder="Ej: mezcla con agua 1:1" />
-                  </div>
-                  <label className="flex items-center gap-2 self-end pb-3 text-sm sm:col-span-2">
-                    <input type="checkbox" name="descontar" value="1" defaultChecked className="size-4 accent-verde" />Descontar de bodega
-                  </label>
-                  <div className="sm:col-span-6"><BotonEnviar className="boton">Agregar insumo</BotonEnviar></div>
-                </form>
-              </details>
-            )}
-            {!edita && listaInsumos.length === 0 && <p className="text-sm text-tinta-suave">Sin insumos registrados.</p>}
           </section>
 
           {/* Evidencias */}
