@@ -354,6 +354,7 @@ export function FormRegistro({
             <div>
               <label htmlFor="costo_insumos" className="etiqueta-campo">Insumos</label>
               <input id="costo_insumos" name="costo_insumos" value={ins} onChange={(e) => setIns(e.target.value)} inputMode="numeric" className="entrada" placeholder="$ (opcional)" />
+              <p className="mt-1 text-[11px] text-tinta-suave">Si agregas insumos de bodega en la ficha, se calcula solo.</p>
             </div>
             <div className="col-span-2 sm:col-span-1">
               <label htmlFor="presupuesto" className="etiqueta-campo">Presupuesto</label>
