@@ -114,6 +114,24 @@ export async function guardarLabor(_: EstadoLaborForm, form: FormData): Promise<
     if (fechaInicio && !esFecha(fechaInicio)) return fallo("Revisa la fecha de inicio.");
     if (fechaTermino && !esFecha(fechaTermino)) return fallo("Revisa la fecha de término.");
 
+    // Insumos de bodega que vienen en el formulario
+    const insProd = form.getAll("ins_producto").map(String);
+    const insCant = form.getAll("ins_cantidad").map(String);
+    const insPorHa = form.getAll("ins_porha").map(String);
+    const insDesc = form.getAll("ins_descontar").map(String);
+    const insHa = numeroLibre(form.get("ins_ha"));
+    const nuevosInsumos: { producto_id: string; cantidad: number; descontar: boolean }[] = [];
+    for (let i = 0; i < insProd.length; i++) {
+      const pid = idOpc(insProd[i]);
+      const c = numeroLibre(insCant[i] ?? "");
+      if (!pid && (c === null || Number.isNaN(c))) continue; // fila vacía
+      if (!pid) return fallo("En insumos de bodega: falta elegir el producto.");
+      if (c === null || Number.isNaN(c) || c <= 0) return fallo("En insumos de bodega: revisa la cantidad.");
+      const porHa = insPorHa[i] === "1";
+      if (porHa && !insHa) return fallo("Para calcular un insumo por hectárea, elige el cuartel o la variedad.");
+      nuevosInsumos.push({ producto_id: pid, cantidad: Math.round((porHa ? c * insHa! : c) * 10000) / 10000, descontar: insDesc[i] !== "0" });
+    }
+
     // Estado al guardar: al editar se mantiene, salvo que se esté confirmando que se hizo
     let estado: EstadoLabor = id ? (antes.estado as EstadoLabor) : estadoPedido;
     if (id && form.get("confirmar") === "1") estado = "realizado";
@@ -208,8 +226,21 @@ export async function guardarLabor(_: EstadoLaborForm, form: FormData): Promise<
       if (e2) console.error("labor_pago", e2);
     }
 
-    // Insumos de bodega: si la labor ya empezó o terminó, se descuentan los pendientes
+    // Insumos de bodega: se guardan; si la labor ya empezó o terminó, se descuentan los pendientes
     let faltanInsumos: string[] = [];
+    if (laborId && nuevosInsumos.length) {
+      const { data: st } = await supabase.from("v_stock").select("producto_id, nombre, unidad, costo_promedio").in("producto_id", nuevosInsumos.map((x) => x.producto_id));
+      const info = new Map(((st ?? []) as any[]).map((x) => [x.producto_id as string, x]));
+      const { error: ei } = await supabase.from("labor_insumo").insert(nuevosInsumos.map((x) => ({
+        labor_id: laborId, producto_id: x.producto_id, cantidad: x.cantidad, descontar: x.descontar, creado_por: user.id,
+        costo_unitario: info.get(x.producto_id)?.costo_promedio != null ? Math.round(Number(info.get(x.producto_id).costo_promedio) * IVA * 100) / 100 : null,
+      })));
+      if (ei) console.error("insumos del formulario", ei);
+      else for (const x of nuevosInsumos) {
+        const p = info.get(x.producto_id);
+        await historial(supabase, { labor_id: laborId, tipo: "insumo", detalle: `+ ${x.cantidad.toLocaleString("es-CL")} ${p?.unidad ?? ""} de ${p?.nombre ?? "producto"}${x.descontar ? "" : " (sin descontar)"}`, usuario: user.id });
+      }
+    }
     if (laborId) {
       faltanInsumos = await descontarPendientes(supabase, laborId, user.id);
       await recalcularCostoInsumos(supabase, laborId);

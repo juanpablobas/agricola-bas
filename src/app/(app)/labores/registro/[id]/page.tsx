@@ -15,9 +15,11 @@ export default async function EditarLabor({ params, searchParams }: { params: Pr
   const q = await searchParams;
   const { supabase, perfil } = await exigirRol("administrador", "enc_administrativo", "enc_agricola");
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const [{ data: r }, { data: trab }] = await Promise.all([
+  const [{ data: r }, { data: trab }, { data: bodega }, { data: insumos }] = await Promise.all([
     supabase.from("labor_registro").select("*").eq("id", id).maybeSingle(),
     supabase.from("labor_trabajador").select("trabajador_id").eq("labor_id", id),
+    supabase.from("v_stock").select("producto_id, nombre, unidad, clasificacion, stock").gt("stock", 0).order("nombre").range(0, 999),
+    supabase.from("labor_insumo").select("cantidad, descontar, mov_id, producto(nombre, unidad)").eq("labor_id", id).order("creado_en"),
   ]);
   if (!r) notFound();
   const conMonto = puede(perfil.rol, "administrador", "enc_administrativo");
@@ -50,6 +52,8 @@ export default async function EditarLabor({ params, searchParams }: { params: Pr
         <FormRegistro
           hoy={hoy} cuarteles={op.cuarteles} variedades={op.variedades} labores={op.labores} cuadrillas={op.cuadrillas} trabajadores={op.trabajadores}
           conMonto={conMonto} inicial={{}} editar={{ id: r.id, valores }} confirmar={confirmar}
+          bodega={((bodega ?? []) as any[]).map((b) => ({ id: b.producto_id, nombre: b.nombre, unidad: b.unidad, clasificacion: b.clasificacion, stock: Number(b.stock) }))}
+          insumosExistentes={((insumos ?? []) as any[]).map((x) => ({ nombre: x.producto?.nombre ?? "", cantidad: Number(x.cantidad), unidad: x.producto?.unidad ?? null, estado: !x.descontar ? "no" : x.mov_id ? "descontado" : "pendiente" }))}
         />
       </section>
     </>

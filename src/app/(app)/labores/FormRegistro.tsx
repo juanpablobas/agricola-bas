@@ -9,6 +9,9 @@ import type { Op, OpX } from "./lib";
 
 export type Inicial = { plan?: string; cuartel?: string; labor?: string; cuadrilla?: string; fiscalizador?: string; personas?: number };
 export type Edicion = { id: string; valores: Record<string, string> };
+export type ProdBodega = { id: string; nombre: string; unidad: string | null; clasificacion: string | null; stock: number };
+export type InsumoExistente = { nombre: string; cantidad: number; unidad: string | null; estado: "descontado" | "pendiente" | "no" };
+type FilaInsumo = { k: number; producto: string; cantidad: string; porHa: boolean; descontar: boolean };
 
 const clp = (n: number) => "$" + Math.round(n).toLocaleString("es-CL");
 const num = (s: string) => {
@@ -47,9 +50,11 @@ function Opciones<T extends string>({ valor, cambiar, opciones, nombre }: { valo
 
 export function FormRegistro({
   hoy, cuarteles, variedades = [], labores, cuadrillas, trabajadores, conMonto, inicial, editar, estadoInicial, confirmar = false,
+  bodega = [], insumosExistentes = [],
 }: {
   hoy: string; cuarteles: OpX[]; variedades?: OpX[]; labores: OpX[]; cuadrillas: OpX[]; trabajadores: Op[]; conMonto: boolean;
   inicial: Inicial; editar?: Edicion; estadoInicial?: EstadoLabor; confirmar?: boolean;
+  bodega?: ProdBodega[]; insumosExistentes?: InsumoExistente[];
 }) {
   const [resultado, enviar] = useActionState<EstadoLaborForm, FormData>(guardarLabor, null);
   const base = resultado?.valores ?? editar?.valores ?? {};
@@ -85,6 +90,12 @@ export function FormRegistro({
   const destinos = useMemo(() => new Map([...cuarteles, ...variedades].map((d) => [d.id, d])), [cuarteles, variedades]);
   const especieDestino = destinos.get(destino)?.especie ?? null;
   const haDestino = destinos.get(destino)?.ha ?? null;
+  // Insumos de bodega (herbicida, pasta de poda…): filas que se agregan en el mismo formulario
+  const [insumos, setInsumos] = useState<FilaInsumo[]>([]);
+  const haInsumos = unidad === "ha" && num(cantPlan) ? num(cantPlan) : haDestino;
+  const prodDe = new Map(bodega.map((b) => [b.id, b]));
+  const clases = [...new Set(bodega.map((b) => b.clasificacion ?? "Otros"))];
+  const cambiarInsumo = (k: number, c: Partial<FilaInsumo>) => setInsumos((xs) => xs.map((x) => (x.k === k ? { ...x, ...c } : x)));
   // Labores que corresponden a la especie elegida (si la labor no tiene especies configuradas, sirve para todas)
   const laboresVisibles = labores.filter((l) => !especieDestino || !l.especies?.length || l.especies.includes(especieDestino) || l.id === laborSel);
   const porCategoria = CATEGORIAS.map((c) => [c, laboresVisibles.filter((l) => (l.categoria ?? "Otras") === c)] as const).filter(([, ls]) => ls.length);
@@ -342,6 +353,74 @@ export function FormRegistro({
             {trabajadores.map((t) => <option key={t.id} value={t.id}>{t.texto}</option>)}
           </select>
         </div>
+      </Seccion>
+
+
+      <Seccion titulo="Insumos de bodega">
+        <p className="-mt-2 text-sm text-tinta-suave">Productos de la bodega usados en la labor (herbicida, pasta de poda, etc.). {estado === "programado" ? "Como queda pendiente, se descuentan cuando la marques como empezada o terminada." : "Se descuentan de bodega al guardar."}</p>
+        {insumosExistentes.length > 0 && (
+          <ul className="flex flex-col gap-1 text-sm">
+            {insumosExistentes.map((x, i) => (
+              <li key={i} className="flex items-center justify-between gap-2 rounded-lg bg-papel px-3 py-2">
+                <span>{x.nombre} · {x.cantidad.toLocaleString("es-CL", { maximumFractionDigits: 3 })} {x.unidad ?? ""}</span>
+                <span className="text-xs text-tinta-suave">{x.estado === "descontado" ? "Descontado" : x.estado === "pendiente" ? "Se descuenta al hacerse" : "Sin descontar"}</span>
+              </li>
+            ))}
+            <li className="text-xs text-tinta-suave">Para quitar uno ya guardado, hazlo en la ficha de la labor.</li>
+          </ul>
+        )}
+        {insumos.map((x) => {
+          const b = prodDe.get(x.producto);
+          const cant = num(x.cantidad);
+          const total = cant !== null ? (x.porHa && haInsumos ? cant * haInsumos : cant) : null;
+          const falta = !!b && total !== null && x.descontar && total > b.stock + 0.0005;
+          return (
+            <div key={x.k} className="grid grid-cols-2 gap-2 rounded-xl border border-linea p-3 sm:grid-cols-12">
+              <div className="col-span-2 sm:col-span-5">
+                <label className="etiqueta-campo" htmlFor={`ins-p-${x.k}`}>Producto</label>
+                <select id={`ins-p-${x.k}`} name="ins_producto" value={x.producto} onChange={(e) => cambiarInsumo(x.k, { producto: e.target.value })} className="entrada">
+                  <option value="">Elegir…</option>
+                  {clases.map((cl) => (
+                    <optgroup key={cl} label={cl}>
+                      {bodega.filter((p) => (p.clasificacion ?? "Otros") === cl).map((p) => <option key={p.id} value={p.id}>{p.nombre} · hay {p.stock.toLocaleString("es-CL", { maximumFractionDigits: 2 })} {p.unidad ?? ""}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="etiqueta-campo" htmlFor={`ins-c-${x.k}`}>Cantidad{b?.unidad ? ` (${b.unidad})` : ""}</label>
+                <input id={`ins-c-${x.k}`} name="ins_cantidad" value={x.cantidad} onChange={(e) => cambiarInsumo(x.k, { cantidad: e.target.value })} inputMode="decimal" className="entrada" placeholder="Ej: 2,5" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="etiqueta-campo" htmlFor={`ins-m-${x.k}`}>Es</label>
+                <select id={`ins-m-${x.k}`} name="ins_porha" value={x.porHa ? "1" : "0"} onChange={(e) => cambiarInsumo(x.k, { porHa: e.target.value === "1" })} className="entrada">
+                  <option value="0">Total</option>
+                  {haInsumos ? <option value="1">Por ha</option> : null}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="etiqueta-campo" htmlFor={`ins-d-${x.k}`}>¿Descontar?</label>
+                <select id={`ins-d-${x.k}`} name="ins_descontar" value={x.descontar ? "1" : "0"} onChange={(e) => cambiarInsumo(x.k, { descontar: e.target.value === "1" })} className="entrada">
+                  <option value="1">Sí, de bodega</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+              <div className="col-span-2 flex items-end justify-end sm:col-span-1">
+                <button type="button" onClick={() => setInsumos((xs) => xs.filter((y) => y.k !== x.k))} className="min-h-11 px-2 text-sm text-alerta hover:underline" aria-label="Quitar insumo">Quitar</button>
+              </div>
+              {total !== null && b && (
+                <p className={`col-span-2 text-xs sm:col-span-12 ${falta ? "text-alerta" : "text-tinta-suave"}`}>
+                  {x.porHa && haInsumos ? `${x.cantidad} × ${haInsumos.toLocaleString("es-CL", { maximumFractionDigits: 2 })} ha = ` : ""}<strong>{total.toLocaleString("es-CL", { maximumFractionDigits: 3 })} {b.unidad ?? ""}</strong>{falta ? ` · no alcanza: hay ${b.stock.toLocaleString("es-CL", { maximumFractionDigits: 2 })}` : ""}
+                </p>
+              )}
+            </div>
+          );
+        })}
+        {haInsumos ? <input type="hidden" name="ins_ha" value={haInsumos} /> : null}
+        <button type="button" onClick={() => setInsumos((xs) => [...xs, { k: Date.now(), producto: "", cantidad: "", porHa: false, descontar: true }])} className="boton-secundario w-full sm:w-auto">
+          + Agregar insumo de bodega
+        </button>
+        {bodega.length === 0 && <p className="text-xs text-tinta-suave">No hay productos con stock en bodega.</p>}
       </Seccion>
 
       {conMonto && (
