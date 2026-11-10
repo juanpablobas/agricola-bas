@@ -7,7 +7,6 @@ import { exigirRol, puede } from "@/lib/auth";
 import { leerNumero, leerTexto } from "@/lib/formato";
 import { esFecha, hoyChile, sumaDias } from "@/lib/semana";
 import { costos, MOTIVOS, ESTADOS, type EstadoLabor } from "./modelo";
-import { IVA, descontarPendientes, recalcularCostoInsumos } from "./insumos";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const idOpc = (v: FormDataEntryValue | null | undefined) => {
@@ -208,13 +207,6 @@ export async function guardarLabor(_: EstadoLaborForm, form: FormData): Promise<
       if (e2) console.error("labor_pago", e2);
     }
 
-    // Insumos de bodega: si la labor ya empezó o terminó, se descuentan los pendientes
-    let faltanInsumos: string[] = [];
-    if (laborId) {
-      faltanInsumos = await descontarPendientes(supabase, laborId, user.id);
-      await recalcularCostoInsumos(supabase, laborId);
-    }
-
     // Historial
     if (!id) {
       await historial(supabase, { labor_id: laborId, tipo: "creada", estado_despues: estado, fecha_despues: fecha, usuario: user.id, detalle: ESTADOS[estado].texto });
@@ -235,7 +227,7 @@ export async function guardarLabor(_: EstadoLaborForm, form: FormData): Promise<
     }
 
     refrescar(laborId ?? undefined);
-    destino = `/labores/${laborId}?ok=${id ? "editada" : "creada"}${faltanInsumos.length ? `&sinstock=${encodeURIComponent(faltanInsumos.join(", "))}` : ""}`;
+    destino = `/labores/${laborId}?ok=${id ? "editada" : "creada"}`;
   } catch (e) {
     if (esRedireccion(e)) throw e;
     console.error("guardarLabor excepción", e);
@@ -272,10 +264,7 @@ export async function cambiarEstado(form: FormData) {
   if (nuevo === "programado") Object.assign(datos, { fecha_termino: null });
   await supabase.from("labor_registro").update(datos).eq("id", id);
   await historial(supabase, { labor_id: id, tipo: "estado", estado_antes: l.estado, estado_despues: nuevo, detalle: leerTexto(form.get("observacion")), usuario: user.id });
-  const faltan = await descontarPendientes(supabase, id!, user.id);
   refrescar(id);
-  revalidatePath("/inventario", "layout");
-  if (faltan.length) redirect(`/labores/${id}?ok=estado&sinstock=${encodeURIComponent(faltan.join(", "))}`);
   redirect(volver.startsWith("/labores") ? volver : `/labores/${id}?ok=estado`);
 }
 
@@ -391,65 +380,4 @@ export async function borrarArchivoLabor(form: FormData) {
   await supabase.storage.from("archivos").remove([a.ruta]);
   await supabase.from("archivo").delete().eq("id", id);
   revalidatePath(`/labores/${a.entidad_id}`);
-}
-
-/** Agrega un insumo de bodega a la labor. Si la labor ya empezó o terminó, se descuenta al tiro; si no, cuando se haga. */
-export async function agregarInsumo(form: FormData) {
-  const { supabase, user } = await exigirRol(...ROLES);
-  const id = idOpc(form.get("id"));
-  const producto = idOpc(form.get("producto"));
-  let cantidad = numeroLibre(form.get("cantidad"));
-  const porHa = form.get("por_ha") === "1";
-  const descontar = form.get("descontar") === "1";
-  if (!id) redirect("/labores");
-  if (!producto || cantidad === null || Number.isNaN(cantidad) || cantidad <= 0) redirect(`/labores/${id}?error=insumo#insumos`);
-  if (porHa) {
-    const ha = numeroLibre(form.get("ha"));
-    if (!ha || Number.isNaN(ha)) redirect(`/labores/${id}?error=insumo_ha#insumos`);
-    cantidad = Math.round(cantidad * ha * 10000) / 10000;
-  }
-  const { data: st } = await supabase.from("v_stock").select("nombre, unidad, stock, costo_promedio").eq("producto_id", producto).maybeSingle();
-  if (!st) redirect(`/labores/${id}?error=insumo#insumos`);
-  const { data: l } = await supabase.from("labor_registro").select("estado").eq("id", id).maybeSingle();
-  if (!l) redirect("/labores");
-  const yaSeHace = l.estado === "en_ejecucion" || l.estado === "realizado";
-  if (descontar && yaSeHace && cantidad > Number(st.stock) + 0.0005) {
-    redirect(`/labores/${id}?sinstock=${encodeURIComponent(`${st.nombre} (hay ${Number(st.stock).toLocaleString("es-CL")} ${st.unidad ?? ""})`)}#insumos`);
-  }
-  const { error } = await supabase.from("labor_insumo").insert({
-    labor_id: id, producto_id: producto, cantidad, descontar,
-    costo_unitario: st.costo_promedio != null ? Math.round(Number(st.costo_promedio) * IVA * 100) / 100 : null,
-    observacion: leerTexto(form.get("observacion")), creado_por: user.id,
-  });
-  if (error) {
-    console.error("agregarInsumo", error);
-    redirect(`/labores/${id}?error=insumo#insumos`);
-  }
-  const faltan = await descontarPendientes(supabase, id!, user.id);
-  await recalcularCostoInsumos(supabase, id!);
-  await historial(supabase, { labor_id: id, tipo: "insumo", detalle: `+ ${cantidad.toLocaleString("es-CL")} ${st.unidad ?? ""} de ${st.nombre}${descontar ? (yaSeHace ? " (descontado de bodega)" : " (se descuenta cuando se haga)") : " (sin descontar)"}`, usuario: user.id });
-  refrescar(id!);
-  revalidatePath("/inventario", "layout");
-  redirect(`/labores/${id}?ok=insumo${faltan.length ? `&sinstock=${encodeURIComponent(faltan.join(", "))}` : ""}#insumos`);
-}
-
-/** Quita un insumo de la labor; si ya se había descontado, el producto vuelve a la bodega. */
-export async function quitarInsumo(form: FormData) {
-  const { supabase, user } = await exigirRol(...ROLES);
-  const insumo = idOpc(form.get("insumo"));
-  const id = idOpc(form.get("id"));
-  if (!insumo || !id) redirect("/labores");
-  const { data: x } = await supabase.from("labor_insumo").select("mov_id, cantidad, producto(nombre, unidad)").eq("id", insumo).maybeSingle();
-  if (x?.mov_id) {
-    const { error } = await supabase.from("mov_inventario").delete().eq("id", x.mov_id);
-    if (error) redirect(`/labores/${id}?error=insumo_quitar#insumos`);
-  }
-  await supabase.from("labor_insumo").delete().eq("id", insumo);
-  const { count } = await supabase.from("labor_insumo").select("id", { count: "exact", head: true }).eq("labor_id", id);
-  if (!count) await supabase.from("labor_registro").update({ costo_insumos: null }).eq("id", id);
-  else await recalcularCostoInsumos(supabase, id);
-  if (x) await historial(supabase, { labor_id: id, tipo: "insumo", detalle: `− ${Number(x.cantidad).toLocaleString("es-CL")} ${(x as any).producto?.unidad ?? ""} de ${(x as any).producto?.nombre ?? "producto"}${x.mov_id ? " (devuelto a bodega)" : ""}`, usuario: user.id });
-  refrescar(id);
-  revalidatePath("/inventario", "layout");
-  redirect(`/labores/${id}?ok=insumo_quitado#insumos`);
 }
