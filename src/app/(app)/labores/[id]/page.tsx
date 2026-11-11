@@ -119,6 +119,9 @@ export default async function Labor({ params, searchParams }: { params: Promise<
               {atrasada && <span className="pastilla bg-alerta-claro text-alerta">Atrasada</span>}
               {l.ejecucion === "contratista" && <span className="pastilla bg-papel">Contratista</span>}
             </div>
+            {l.observacion && (
+              <p className="mx-4 mb-3 rounded-lg bg-papel px-3 py-2 text-base italic text-tinta">“{l.observacion}”</p>
+            )}
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 px-4 pb-4 sm:grid-cols-4">
               <Dato t="Planificada">{fecha(l.fecha_original ?? l.fecha)}</Dato>
               <Dato t={l.fecha_original && l.fecha_original !== l.fecha ? "Reprogramada para" : "Programada"}>
