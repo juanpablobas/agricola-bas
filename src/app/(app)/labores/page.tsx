@@ -13,7 +13,7 @@ import { aplicacionesPrograma, SITUACION_APP, type AppPrograma } from "./program
 export const metadata = { title: "Labores" };
 
 type Q = { vista?: string; desde?: string; hasta?: string; estado?: string; especie?: string; variedad?: string; cuartel?: string; trabajador?: string; contratista?: string; semana?: string; mes?: string; ok?: string };
-const CAMPOS = "id, fecha, fecha_original, fecha_inicio, fecha_termino, estado, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas, horas, ejecucion, cobro, precio_unitario, valor_jornal, valor_hora, cantidad_plan, cantidad_ejecutada, unidad_cantidad, costo_maquinaria, costo_insumos, presupuesto";
+const CAMPOS = "id, fecha, fecha_original, fecha_inicio, fecha_termino, estado, cuartel_id, variedad_id, labor_tipo_id, cuadrilla_id, fiscalizador_id, personas, jornadas, horas, ejecucion, cobro, precio_unitario, valor_jornal, valor_hora, cantidad_plan, cantidad_ejecutada, unidad_cantidad, costo_maquinaria, costo_insumos, presupuesto, observacion";
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const finDeMes = (ym: string) => {
   const [y, m] = ym.split("-").map(Number);
@@ -146,6 +146,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
             {l.cantidad_plan != null && ` · ${num(Number(l.cantidad_plan), 1)} ${nombreUnidad(l.unidad_cantidad, true)}`}
             {veMonto && c > 0 && ` · ${clp(c)}`}
           </p>
+          {l.observacion && <p className="mt-1 line-clamp-2 rounded-md bg-papel px-2 py-1 text-sm italic text-tinta">“{l.observacion}”</p>}
           {l.estado === "en_ejecucion" && pct !== null && (
             <span className="mt-1.5 flex items-center gap-2"><span className="h-1.5 w-32 overflow-hidden rounded-full bg-papel"><span className="block h-full rounded-full bg-ambar" style={{ width: `${pct}%` }} /></span><span className="text-xs tabular-nums text-tinta-suave">{pct} %</span></span>
           )}
@@ -177,13 +178,14 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
       </details>
     );
 
-  const Chip = ({ l }: { l: any }) => {
+  const Chip = ({ l, conNota = false }: { l: any; conNota?: boolean }) => {
     const e = ESTADOS[l.estado as EstadoLabor];
     const atr = estaAtrasada(l, hoy);
     return (
-      <Link href={`/labores/${l.id}`} title={`${op.nombres.labor.get(l.labor_tipo_id)} · ${op.donde(l)} · ${atr ? "Atrasada" : e.texto}`}
+      <Link href={`/labores/${l.id}`} title={`${op.nombres.labor.get(l.labor_tipo_id)} · ${op.donde(l)} · ${atr ? "Atrasada" : e.texto}${l.observacion ? ` · ${l.observacion}` : ""}`}
         className={`block truncate rounded-md px-1.5 py-1 text-[11px] font-medium leading-tight ${atr ? "bg-alerta-claro text-alerta" : e.pastilla}`}>
         {op.nombres.labor.get(l.labor_tipo_id)}<span className="hidden font-normal opacity-80 sm:inline"> · {l.cuartel_id ? op.nombres.cuartel.get(l.cuartel_id)?.split(" ")[0] : l.variedad_id ? op.donde(l).split(" ")[0] : "General"}</span>
+        {conNota && l.observacion && <span className="block truncate font-normal italic opacity-90">{l.observacion}</span>}
       </Link>
     );
   };
@@ -341,7 +343,7 @@ export default async function Labores({ searchParams }: { searchParams: Promise<
                     {edita && <Link href={`/labores/registrar?fecha=${d}`} className={`grid size-7 place-items-center rounded-md ${d === hoy ? "hover:bg-white/15" : "hover:bg-white"}`} aria-label={`Agregar labor el ${corta(d)}`}><Icono nombre="mas" className="size-4" /></Link>}
                   </div>
                   <div className="flex flex-1 flex-col gap-1 p-2">
-                    {delDia.length === 0 && progDia.length === 0 ? <p className="px-1 text-xs text-tinta-suave lg:hidden">Sin labores</p> : delDia.map((l) => <Chip key={l.id} l={l} />)}
+                    {delDia.length === 0 && progDia.length === 0 ? <p className="px-1 text-xs text-tinta-suave lg:hidden">Sin labores</p> : delDia.map((l) => <Chip key={l.id} l={l} conNota />)}
                     {progDia.map((a) => <ChipApp key={a.app_id} a={a} />)}
                   </div>
                 </section>
